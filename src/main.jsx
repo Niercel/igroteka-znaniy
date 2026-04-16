@@ -1,19 +1,13 @@
+import './index.css'
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { MantineProvider, createTheme } from '@mantine/core'
 import App from './App.jsx'
-import '@mantine/core/styles.css'
+import { initSmoothScroll } from './utils/scroll.js'
 
-const theme = createTheme({
-  fontFamily: 'Nunito, sans-serif',
-  primaryColor: 'violet', 
-  defaultRadius: 'lg',
-})
+initSmoothScroll()
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <MantineProvider theme={theme}>
-      <App />
-    </MantineProvider>
+    <App />
   </React.StrictMode>,
 )
