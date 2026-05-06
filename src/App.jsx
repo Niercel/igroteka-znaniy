@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { HashRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import HomePage from './pages/HomePage'
 import Login from './pages/Login'
@@ -6,7 +6,7 @@ import Register from './pages/Register'
 
 function App() {
   return (
-    <BrowserRouter basename="/igroteka-znaniy">
+    <HashRouter>
       <AuthProvider>
         <Routes>
           <Route path="/" element={<HomePage />} />
@@ -14,7 +14,7 @@ function App() {
           <Route path="/register" element={<Register />} />
         </Routes>
       </AuthProvider>
-    </BrowserRouter>
+    </HashRouter>
   )
 }
 
