@@ -1,8 +1,15 @@
 import { useNavigate } from 'react-router-dom'
 import { smoothScrollTo, scrollToTop } from '../utils/scroll'
+import { useAuth } from '../context/AuthContext'
 
 export default function Header() {
   const navigate = useNavigate()
+  const { user, logout } = useAuth()
+
+  const handleLogout = async () => {
+    await logout()
+    navigate('/')
+  }
 
   return (
     <header className="max-w-7xl mx-auto px-4 py-6 animate-fade-in">
@@ -42,18 +49,37 @@ export default function Header() {
         </div>
 
         <div className="flex gap-3">
-          <button 
-            className="text-white/80 hover:text-white px-5 py-2.5 rounded-lg transition-all text-base font-medium hover:bg-white/5"
-            onClick={() => navigate('/login')}
-          >
-            Вход
-          </button>
-          <button 
-            className="bg-gradient-to-r from-violet-500 to-indigo-500 hover:from-violet-600 hover:to-indigo-600 text-white px-6 py-2.5 rounded-full transition-all text-base font-medium shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 hover:scale-105"
-            onClick={() => navigate('/register')}
-          >
-            Регистрация
-          </button>
+          {user ? (
+            <>
+              <button 
+                className="text-white/80 hover:text-white px-5 py-2.5 rounded-lg transition-all text-base font-medium hover:bg-white/5"
+                onClick={() => navigate('/dashboard')}
+              >
+                Личный кабинет
+              </button>
+              <button 
+                className="bg-gradient-to-r from-violet-500 to-indigo-500 hover:from-violet-600 hover:to-indigo-600 text-white px-6 py-2.5 rounded-full transition-all text-base font-medium shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 hover:scale-105"
+                onClick={handleLogout}
+              >
+                Выйти
+              </button>
+            </>
+          ) : (
+            <>
+              <button 
+                className="text-white/80 hover:text-white px-5 py-2.5 rounded-lg transition-all text-base font-medium hover:bg-white/5"
+                onClick={() => navigate('/login')}
+              >
+                Вход
+              </button>
+              <button 
+                className="bg-gradient-to-r from-violet-500 to-indigo-500 hover:from-violet-600 hover:to-indigo-600 text-white px-6 py-2.5 rounded-full transition-all text-base font-medium shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 hover:scale-105"
+                onClick={() => navigate('/register')}
+              >
+                Регистрация
+              </button>
+            </>
+          )}
         </div>
       </div>
     </header>
