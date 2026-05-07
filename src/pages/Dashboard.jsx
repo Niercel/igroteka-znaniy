@@ -5,6 +5,8 @@ import { db } from '../firebase/config'
 import { useAuth } from '../context/AuthContext'
 import AnimatedBackground from '../components/AnimatedBackground'
 import { Plus, Trash2, Play, User, LogOut, Home, Sparkles } from 'lucide-react'
+import seedDatabase from '../utils/seedData'
+
 
 export default function Dashboard() {
   const { user, logout } = useAuth()
@@ -16,6 +18,19 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [seeding, setSeeding] = useState(false)
+
+const handleSeed = async () => {
+  setSeeding(true)
+  try {
+    await seedDatabase()
+    alert('База заполнена!')
+  } catch (err) {
+    alert('Ошибка: ' + err.message)
+  } finally {
+    setSeeding(false)
+  }
+}
 
   useEffect(() => {
     if (!user) {
@@ -107,6 +122,10 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e]">
       <AnimatedBackground />
+      <button onClick={handleSeed} disabled={seeding}
+  className="bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 px-4 py-2 rounded-lg text-sm transition-colors">
+  {seeding ? '...' : '🌱 Заполнить БД'}
+</button>
       
       <div className="relative z-10 max-w-4xl mx-auto px-4 py-8">
         {/* Верхняя панель */}
