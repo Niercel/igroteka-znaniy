@@ -1,5 +1,5 @@
 import { Canvas } from '@react-three/fiber'
-import { OrbitControls, Environment, Float } from '@react-three/drei'
+import { OrbitControls, Float } from '@react-three/drei'
 import { useMemo } from 'react'
 
 function FloatingShape({ position, color, shape, size, speed }) {
@@ -91,8 +91,6 @@ export default function AnimatedBackground() {
         {shapes.map((shape) => (
           <FloatingShape key={shape.id} {...shape} />
         ))}
-
-        <Environment preset="night" />
       </Canvas>
     </div>
   )
