@@ -1,15 +1,24 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { doc, getDoc } from 'firebase/firestore'
+import { doc, getDoc, addDoc, collection } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useAuth } from '../context/AuthContext'
-import AnimatedBackground from '../components/AnimatedBackground'
+import GameResultModal from '../components/GameResultModal'
 import MathGame from '../components/games/MathGame'
 import MemoryGame from '../components/games/MemoryGame'
 import LogicGame from '../components/games/LogicGame'
 import SpeechGame from '../components/games/SpeechGame'
+import SentenceReadingGame from '../components/games/SentenceReadingGame'
 import ReadingGame from '../components/games/ReadingGame'
-import { ArrowLeft, Star, Trophy, RefreshCw } from 'lucide-react'
+import NumberBasketsGame from '../components/games/NumberBasketsGame'
+import CompareGame from '../components/games/CompareGame'
+import CommonalityGame from '../components/games/CommonalityGame'
+import SimonGame from '../components/games/SimonGame'
+import MatchingGame from '../components/games/MatchingGame'
+import SentenceGame from '../components/games/SentenceGame'
+import MissingLetterGame from '../components/games/MissingLetterGame'
+import ChooseWordGame from '../components/games/ChooseWordGame'
+import { ArrowLeft } from 'lucide-react'
 
 export default function Play() {
   const { childId, gameId } = useParams()
@@ -24,86 +33,101 @@ export default function Play() {
   useEffect(() => {
     if (!user) { navigate('/login'); return }
     loadGame()
-  }, [user])
+  }, [user, gameId])
 
   const loadGame = async () => {
     try {
-      const docRef = doc(db, 'games', gameId)
-      const snap = await getDoc(docRef)
+      const snap = await getDoc(doc(db, 'games', gameId))
       if (snap.exists()) setGame({ id: snap.id, ...snap.data() })
     } catch (err) { console.error(err) }
     finally { setLoading(false) }
   }
 
-  const handleComplete = (score, max) => {
+  // Сохранение прогресса в Firestore
+  const saveProgress = async (score, max) => {
+    try {
+      const gameDoc = await getDoc(doc(db, 'games', gameId))
+      const categoryId = gameDoc.exists() ? gameDoc.data().categoryId : null
+      await addDoc(collection(db, 'progress'), {
+        childId,
+        gameId,
+        categoryId,
+        gameType: game?.type,
+        score,
+        maxScore: max,
+        timestamp: new Date().toISOString(),
+      })
+    } catch (err) {
+      console.error('Ошибка сохранения прогресса:', err)
+    }
+  }
+
+  const handleComplete = async (score, max) => {
     setFinalScore(score)
     setMaxScore(max)
     setFinished(true)
+    await saveProgress(score, max)
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] flex items-center justify-center">
-        <div className="w-12 h-12 border-3 border-violet-400 border-t-transparent rounded-full animate-spin"></div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-purple-400 border-t-transparent rounded-full animate-spin"></div>
       </div>
     )
   }
 
   if (finished) {
-    const p = maxScore > 0 ? Math.round((finalScore / maxScore) * 100) : 0
-    const stars = p >= 80 ? 3 : p >= 50 ? 2 : 1
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] flex items-center justify-center p-4">
-        <AnimatedBackground />
-        <div className="relative z-10 bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-10 w-full max-w-md text-center animate-slide-up">
-          <Trophy size={80} className="text-yellow-400 mx-auto mb-4 animate-float" />
-          <h1 className="text-white text-3xl font-bold mb-2">Игра пройдена!</h1>
-          <div className="flex justify-center gap-2 my-4">
-            {[1, 2, 3].map(i => (
-              <Star key={i} size={40} className={`${i <= stars ? 'text-yellow-400 fill-yellow-400 animate-bounce' : 'text-white/20'}`} style={{ animationDelay: `${i * 200}ms` }} />
-            ))}
-          </div>
-          <p className="text-white/50 mb-6">{finalScore} из {maxScore} ({p}%)</p>
-          <div className="flex gap-3">
-            <button onClick={() => { setFinished(false); setFinalScore(0); setMaxScore(0) }}
-              className="flex-1 bg-gradient-to-r from-violet-500 to-indigo-500 text-white py-4 rounded-xl font-bold hover:scale-105 transition-all flex items-center justify-center gap-2">
-              <RefreshCw size={20} /> Ещё раз
-            </button>
-            <button onClick={() => navigate(`/games/${childId}`)}
-              className="flex-1 bg-white/10 text-white py-4 rounded-xl font-bold hover:bg-white/20 transition-all">
-              Все игры
-            </button>
-          </div>
-        </div>
+      <div className="min-h-screen">
+        <GameResultModal
+          open={finished}
+          title={game?.title}
+          imageUrl={game?.imageUrl}
+          score={finalScore}
+          maxScore={maxScore}
+          onRestart={() => { setFinished(false); setFinalScore(0); setMaxScore(0) }}
+          onExit={() => navigate(`/games/${childId}`)}
+        />
       </div>
     )
   }
 
   const renderGame = () => {
     if (!game) return null
+    const props = { game, onComplete: handleComplete, light: true }
     switch (game.type) {
-      case 'math': return <MathGame game={game} onComplete={handleComplete} />
-      case 'memory': return <MemoryGame game={game} onComplete={handleComplete} />
-      case 'logic': return <LogicGame game={game} onComplete={handleComplete} />
-      case 'speech': return <SpeechGame game={game} onComplete={handleComplete} />
-      case 'reading': return <ReadingGame game={game} onComplete={handleComplete} />
-      default: return <div className="text-white text-center py-20">Неизвестный тип игры</div>
+      case 'math': return <MathGame {...props} />
+      case 'memory': return <MemoryGame {...props} />
+      case 'logic': return <LogicGame {...props} />
+      case 'speech': return <SpeechGame {...props} />
+      case 'sentence-reading': return <SentenceReadingGame {...props} />
+      case 'reading': return <ReadingGame {...props} />
+      case 'number-baskets': return <NumberBasketsGame {...props} />
+      case 'compare': return <CompareGame {...props} />
+      case 'commonality': return <CommonalityGame {...props} />
+      case 'simon': return <SimonGame {...props} />
+      case 'matching': return <MatchingGame {...props} />
+      case 'sentence': return <SentenceGame {...props} />
+      case 'missing-letter': return <MissingLetterGame {...props} />
+      case 'choose-word': return <ChooseWordGame {...props} />
+      default: return <div className="text-gray-800 text-center py-20">Неизвестный тип игры</div>
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e]">
-      <AnimatedBackground />
+    <div className="min-h-screen">
       <div className="relative z-10 max-w-2xl mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-6">
-          <button onClick={() => navigate(`/games/${childId}`)}
-            className="text-white/60 hover:text-white flex items-center gap-2 bg-white/5 rounded-xl px-4 py-2 transition-colors">
-            <ArrowLeft size={20} /> Выйти
+          <button onClick={() => navigate(`/games/${childId}`)} className="p-2 rounded-xl bg-white/80 backdrop-blur-sm hover:bg-white shadow-lg transition-all">
+            <ArrowLeft size={20} className="text-purple-500" />
           </button>
-          <h1 className="text-white text-xl font-bold">{game?.title}</h1>
-          <div className="w-20" />
+          <h1 className="text-xl font-bold text-gray-800">{game?.title}</h1>
+          <div className="w-10" />
         </div>
-        {renderGame()}
+        <div className="bg-white/80 backdrop-blur-xl border border-gray-200 rounded-3xl p-6 shadow-2xl">
+          {renderGame()}
+        </div>
       </div>
     </div>
   )

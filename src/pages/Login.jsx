@@ -117,6 +117,12 @@ export default function Login() {
             </div>
           </div>
 
+          <div className="text-right">
+            <Link to="/reset-password" className="text-sm text-violet-400 hover:text-violet-300 transition-colors">
+              Забыли пароль?
+            </Link>
+          </div>
+
           <button
             type="submit"
             disabled={loading}

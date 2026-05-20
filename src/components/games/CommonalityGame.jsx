@@ -1,41 +1,49 @@
 import { useState, useEffect } from 'react'
 import { Star, Lightbulb, HelpCircle } from 'lucide-react'
-import { generateLogicQuestion } from '../../utils/gameAlgorithms'
-import { getRandomMessage } from '../../utils/gameContent'
 import { DIFFICULTY_LEVELS, getSettings, getDifficultyLabel } from '../../utils/gameSettings'
+import { getRandomMessage } from '../../utils/gameContent'
+import { loadGameContent } from '../../utils/gameAlgorithms'
 import HintModal from '../HintModal'
 
-export default function LogicGame({ game, onComplete, light }) {
+export default function CommonalityGame({ game, onComplete, light }) {
   const [difficulty, setDifficulty] = useState('medium')
   const [round, setRound] = useState(0)
   const [score, setScore] = useState(0)
   const [question, setQuestion] = useState(null)
+  const [options, setOptions] = useState([])
   const [selected, setSelected] = useState(null)
   const [showResult, setShowResult] = useState(false)
   const [message, setMessage] = useState('')
-  const [loading, setLoading] = useState(true)
   const [finished, setFinished] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [showHint, setShowHint] = useState(false)
 
-  const settings = getSettings('logic', difficulty)
+  const settings = getSettings('commonality', difficulty)
   const totalRounds = settings.rounds
 
   useEffect(() => {
+    if (finished) return
     setLoading(true)
-    generateLogicQuestion(game.id).then(q => {
-      setQuestion(q)
+    loadGameContent(game.id).then(cats => {
+      const main = cats[Math.floor(Math.random() * cats.length)]
+      const items = [...main.emojis].sort(() => Math.random() - 0.5).slice(0, 3)
+      const wrong = cats.filter(c => c.categoryName !== main.categoryName)
+        .sort(() => Math.random() - 0.5).slice(0, 2).map(c => c.categoryName)
+      const all = [main.categoryName, ...wrong].sort(() => Math.random() - 0.5)
+      setQuestion({ items, correct: main.categoryName })
+      setOptions(all)
       setSelected(null)
       setShowResult(false)
       setMessage('')
       setLoading(false)
     })
-  }, [round, difficulty, game.id])
+  }, [round, difficulty, finished, game.id])
 
-  const handleAnswer = (index) => {
+  const handleAnswer = (cat) => {
     if (showResult || finished) return
-    setSelected(index)
+    setSelected(cat)
     setShowResult(true)
-    const correct = index === question.correct
+    const correct = cat === question.correct
     if (correct) {
       setScore(s => s + 1)
       setMessage(getRandomMessage(game.correctMessages))
@@ -43,13 +51,9 @@ export default function LogicGame({ game, onComplete, light }) {
       setMessage(getRandomMessage(game.incorrectMessages))
     }
     setTimeout(() => {
-      if (round + 1 < totalRounds) {
-        setRound(r => r + 1)
-      } else {
-        setFinished(true)
-        onComplete(score + (correct ? 1 : 0), totalRounds)
-      }
-    }, 2000)
+      if (round + 1 < totalRounds) setRound(r => r + 1)
+      else { setFinished(true); onComplete(score + (correct ? 1 : 0), totalRounds) }
+    }, 1500)
   }
 
   if (finished) return null
@@ -57,7 +61,6 @@ export default function LogicGame({ game, onComplete, light }) {
 
   const bgCard = light ? 'bg-white border-gray-200' : 'bg-white/10 border-white/20'
   const textColor = light ? 'text-gray-800' : 'text-white'
-  const subTextColor = light ? 'text-gray-500' : 'text-white/60'
 
   return (
     <div>
@@ -88,24 +91,28 @@ export default function LogicGame({ game, onComplete, light }) {
 
       <div className={`${bgCard} backdrop-blur-xl border rounded-3xl p-6 text-center`}>
         <Lightbulb size={28} className="text-yellow-500 mx-auto mb-3" />
-        <h2 className={`text-xl font-bold mb-2 ${textColor}`}>{question.text}</h2>
-        <p className={`text-sm mb-6 ${subTextColor}`}>{question.hint}</p>
-        <div className="flex justify-center gap-4 flex-wrap mb-6">
+        <h2 className={`text-xl font-bold mb-2 ${textColor}`}>Что общего?</h2>
+        <div className="flex justify-center gap-4 text-5xl mb-6">
           {question.items.map((item, i) => (
-            <button key={i} onClick={() => handleAnswer(i)} disabled={showResult}
-              className={`text-5xl w-20 h-20 rounded-2xl transition-all active:scale-90 shadow-lg ${
+            <span key={i} className="bg-gray-100 rounded-xl w-16 h-16 flex items-center justify-center animate-slide-up shadow-md" style={{ animationDelay: `${i * 100}ms` }}>{item}</span>
+          ))}
+        </div>
+        <div className="flex justify-center gap-3 flex-wrap">
+          {options.map(opt => (
+            <button key={opt} onClick={() => handleAnswer(opt)} disabled={showResult}
+              className={`px-5 py-3 rounded-xl text-lg font-medium transition-all active:scale-90 ${
                 showResult
-                  ? i === question.correct ? 'bg-green-400/80 border-2 border-green-300 scale-110 animate-pop'
-                  : i === selected ? 'bg-red-400/80 border-2 border-red-300 animate-shake'
+                  ? opt === question.correct ? 'bg-green-400/80 border-2 border-green-300 text-white scale-105 animate-pop'
+                  : opt === selected ? 'bg-red-400/80 border-2 border-red-300 text-white animate-shake'
                   : 'bg-gray-100 text-gray-400'
                 : 'bg-gray-100 border-2 border-gray-300 text-gray-800 hover:bg-gray-200 hover:scale-105'
-              }`}>{item}</button>
+              }`}>{opt}</button>
           ))}
         </div>
         {showResult && (
-          <div className="animate-slide-up">
+          <div className="mt-6 animate-slide-up">
             <div className={`text-xl font-bold mb-2 ${selected === question.correct ? 'text-green-500' : 'text-red-500'}`}>{message}</div>
-            <p className={`text-sm ${subTextColor}`}>{question.explanation}</p>
+            {selected !== question.correct && <p className="text-gray-500 text-sm">Правильно: {question.correct}</p>}
           </div>
         )}
       </div>

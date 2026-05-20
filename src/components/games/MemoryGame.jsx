@@ -1,13 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
+import { Star, Timer, HelpCircle } from 'lucide-react'
 import { generateMemoryCards } from '../../utils/gameAlgorithms'
-import { getRandomMessage, getGameDescription } from '../../utils/gameContent'
+import { getRandomMessage } from '../../utils/gameContent'
 import { DIFFICULTY_LEVELS, getSettings, getDifficultyLabel } from '../../utils/gameSettings'
-import { Star, Timer } from 'lucide-react'
+import HintModal from '../HintModal'
 
-export default function MemoryGame({ game, onComplete }) {
-  const desc = getGameDescription('memory')
+export default function MemoryGame({ game, onComplete, light }) {
   const [difficulty, setDifficulty] = useState('medium')
-  const [level, setLevel] = useState(1)
   const [cards, setCards] = useState([])
   const [flipped, setFlipped] = useState([])
   const [matched, setMatched] = useState([])
@@ -16,15 +15,14 @@ export default function MemoryGame({ game, onComplete }) {
   const [timer, setTimer] = useState(0)
   const [message, setMessage] = useState('')
   const [finished, setFinished] = useState(false)
-  const [score, setScore] = useState(0)
+  const [showHint, setShowHint] = useState(false)
   const timerRef = useRef(null)
 
   const settings = getSettings('memory', difficulty)
 
   useEffect(() => {
-    if (finished) return
-    const generated = generateMemoryCards(settings.pairsCount)
-    setCards(generated)
+    const pairs = settings.pairsCount
+    setCards(generateMemoryCards(pairs))
     setFlipped([])
     setMatched([])
     setMoves(0)
@@ -32,19 +30,10 @@ export default function MemoryGame({ game, onComplete }) {
     setMessage('')
     startTimer()
     return () => stopTimer()
-  }, [level, difficulty, finished])
+  }, [difficulty])
 
   const startTimer = () => { stopTimer(); timerRef.current = setInterval(() => setTimer(t => t + 1), 1000) }
   const stopTimer = () => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null } }
-
-  const changeDifficulty = (diff) => {
-    setDifficulty(diff)
-    setLevel(1)
-    setScore(0)
-    setFinished(false)
-    setMatched([])
-    stopTimer()
-  }
 
   const handleClick = (index) => {
     if (locked || flipped.includes(index) || matched.includes(cards[index].pairId)) return
@@ -59,50 +48,69 @@ export default function MemoryGame({ game, onComplete }) {
         setMatched(newMatched)
         setFlipped([])
         setLocked(false)
-        setMessage(getRandomMessage(desc.correct))
-        setScore(s => s + 1)
+        setMessage(getRandomMessage(game.correctMessages))
         if (newMatched.length === cards.length / 2) {
           stopTimer()
           setTimeout(() => {
-            if (level < settings.maxLevel) setLevel(l => l + 1)
-            else { setFinished(true); onComplete(moves, cards.length / 2 * settings.maxLevel) }
-          }, 1000)
+            setFinished(true)
+            onComplete(newMatched.length, cards.length / 2)
+          }, 800)
         }
       } else {
-        setMessage(getRandomMessage(desc.incorrect))
+        setMessage(getRandomMessage(game.incorrectMessages))
         setTimeout(() => { setFlipped([]); setLocked(false); setMessage('') }, 800)
       }
     }
   }
 
   if (finished) return null
+
   const cols = cards.length <= 12 ? 'grid-cols-4' : 'grid-cols-4'
+  const bgCard = light ? 'bg-white border-gray-200' : 'bg-white/10 border-white/20'
+  const textColor = light ? 'text-gray-800' : 'text-white'
+  const subTextColor = light ? 'text-gray-500' : 'text-white/60'
 
   return (
     <div>
-      <div className="flex gap-1 mb-4 bg-white/5 rounded-full p-1">
-        {DIFFICULTY_LEVELS.map(d => (
-          <button key={d} onClick={() => changeDifficulty(d)}
-            className={`flex-1 py-2 px-3 rounded-full text-sm font-medium transition-all ${difficulty === d ? 'bg-gradient-to-r from-violet-500 to-indigo-500 text-white' : 'text-white/50 hover:text-white'}`}>{getDifficultyLabel(d)}</button>
-        ))}
+      <HintModal isOpen={showHint} onClose={() => setShowHint(false)} title={game.title} instructions={game.instructions} />
+
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex gap-1 bg-gray-100 rounded-full p-1">
+          {DIFFICULTY_LEVELS.map(d => (
+            <button key={d} onClick={() => setDifficulty(d)}
+              className={`py-1.5 px-3 rounded-full text-xs font-medium transition-all ${difficulty === d ? 'bg-purple-100 text-purple-700 shadow-md' : 'text-gray-600 hover:text-gray-800'}`}>
+              {getDifficultyLabel(d)}
+            </button>
+          ))}
+        </div>
+        <button onClick={() => setShowHint(true)} className={`w-8 h-8 rounded-full flex items-center justify-center ${light ? 'bg-gray-100 hover:bg-gray-200' : 'bg-white/20 hover:bg-white/30'}`}>
+          <HelpCircle size={16} className={light ? 'text-gray-600' : 'text-white'} />
+        </button>
       </div>
+
       <div className="flex items-center gap-2 mb-4">
-        <span className="text-white/60 text-sm bg-white/5 rounded-full px-4 py-1">Уровень {level}/{settings.maxLevel}</span>
+        <span className={`text-xs rounded-full px-3 py-1 ${light ? 'bg-gray-100 text-gray-600' : 'bg-white/10 text-white/60'}`}>Найди все пары</span>
         <div className="flex-1" />
-        <Timer size={16} className="text-white/40" /><span className="text-white/60 text-sm">{timer}с</span>
-        <span className="text-white/60 text-sm ml-2">Ходы: {moves}</span>
-        <Star size={16} className="text-yellow-400 fill-yellow-400 ml-2" /><span className="text-white font-bold">{matched.length}/{cards.length / 2}</span>
+        <Timer size={14} className="text-gray-500" /><span className={`text-xs ${subTextColor}`}>{timer}с</span>
+        <span className={`text-xs ml-2 ${subTextColor}`}>Ходы: {moves}</span>
+        <Star size={14} className="text-yellow-500 fill-yellow-500" />
+        <span className={`text-sm font-bold ${textColor}`}>{matched.length}/{cards.length / 2}</span>
       </div>
+
       <div className={`grid ${cols} gap-3 max-w-md mx-auto`}>
         {cards.map((card, i) => {
           const revealed = flipped.includes(i) || matched.includes(card.pairId)
           return (
             <button key={i} onClick={() => handleClick(i)} disabled={revealed || locked}
-              className={`aspect-square rounded-2xl text-4xl flex items-center justify-center transition-all ${revealed ? 'bg-gradient-to-br from-violet-500 to-indigo-500' : 'bg-white/10 hover:bg-white/20'}`}>{revealed ? card.emoji : '❓'}</button>
+              className={`aspect-square rounded-2xl text-4xl flex items-center justify-center transition-all duration-300 ${
+                revealed ? 'bg-gradient-to-br from-purple-400 to-pink-400 animate-flip shadow-lg' : 'bg-gray-100 hover:bg-gray-200 shadow-md hover:shadow-lg'
+              }`}>
+              {revealed ? card.emoji : '❓'}
+            </button>
           )
         })}
       </div>
-      {message && <div className="text-center mt-4 text-lg font-bold text-green-400">{message}</div>}
+      {message && <div className="text-center mt-4 text-lg font-bold animate-slide-up text-green-500">{message}</div>}
     </div>
   )
 }

@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
-import { Star, Lightbulb, HelpCircle } from 'lucide-react'
-import { generateLogicQuestion } from '../../utils/gameAlgorithms'
-import { getRandomMessage } from '../../utils/gameContent'
+import { Star, HelpCircle } from 'lucide-react'
 import { DIFFICULTY_LEVELS, getSettings, getDifficultyLabel } from '../../utils/gameSettings'
+import { getRandomMessage } from '../../utils/gameContent'
+import { loadGameContent } from '../../utils/gameAlgorithms'
 import HintModal from '../HintModal'
 
-export default function LogicGame({ game, onComplete, light }) {
+export default function ChooseWordGame({ game, onComplete, light }) {
   const [difficulty, setDifficulty] = useState('medium')
   const [round, setRound] = useState(0)
   const [score, setScore] = useState(0)
@@ -13,29 +13,34 @@ export default function LogicGame({ game, onComplete, light }) {
   const [selected, setSelected] = useState(null)
   const [showResult, setShowResult] = useState(false)
   const [message, setMessage] = useState('')
-  const [loading, setLoading] = useState(true)
   const [finished, setFinished] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [showHint, setShowHint] = useState(false)
 
-  const settings = getSettings('logic', difficulty)
+  const settings = getSettings('choose-word', difficulty)
   const totalRounds = settings.rounds
+  const contentLevel = { easy: 1, medium: 2, hard: 3 }[difficulty]
 
   useEffect(() => {
+    if (finished) return
     setLoading(true)
-    generateLogicQuestion(game.id).then(q => {
-      setQuestion(q)
-      setSelected(null)
-      setShowResult(false)
-      setMessage('')
+    loadGameContent(game.id).then(items => {
+      const filtered = items.filter(i => i.level === contentLevel && i.word && i.options)
+      if (filtered.length > 0) {
+        setQuestion(filtered[Math.floor(Math.random() * filtered.length)])
+        setSelected(null)
+        setShowResult(false)
+        setMessage('')
+      }
       setLoading(false)
     })
-  }, [round, difficulty, game.id])
+  }, [round, difficulty, finished, game.id, contentLevel])
 
-  const handleAnswer = (index) => {
+  const handleAnswer = (word) => {
     if (showResult || finished) return
-    setSelected(index)
+    setSelected(word)
     setShowResult(true)
-    const correct = index === question.correct
+    const correct = word === question.word
     if (correct) {
       setScore(s => s + 1)
       setMessage(getRandomMessage(game.correctMessages))
@@ -43,21 +48,14 @@ export default function LogicGame({ game, onComplete, light }) {
       setMessage(getRandomMessage(game.incorrectMessages))
     }
     setTimeout(() => {
-      if (round + 1 < totalRounds) {
-        setRound(r => r + 1)
-      } else {
-        setFinished(true)
-        onComplete(score + (correct ? 1 : 0), totalRounds)
-      }
-    }, 2000)
+      if (round + 1 < totalRounds) setRound(r => r + 1)
+      else { setFinished(true); onComplete(score + (correct ? 1 : 0), totalRounds) }
+    }, 1500)
   }
 
   if (finished) return null
   if (loading) return <div className="text-center py-10"><div className="w-8 h-8 border-2 border-purple-400 border-t-transparent rounded-full animate-spin mx-auto" /></div>
-
-  const bgCard = light ? 'bg-white border-gray-200' : 'bg-white/10 border-white/20'
-  const textColor = light ? 'text-gray-800' : 'text-white'
-  const subTextColor = light ? 'text-gray-500' : 'text-white/60'
+  if (!question) return <div className="text-center py-10 text-gray-500">Нет данных</div>
 
   return (
     <div>
@@ -83,29 +81,26 @@ export default function LogicGame({ game, onComplete, light }) {
         </span>
         <div className="flex-1" />
         <Star size={14} className="text-yellow-500 fill-yellow-500" />
-        <span className={`text-sm font-bold ${textColor}`}>{score}</span>
+        <span className={`text-sm font-bold ${light ? 'text-gray-800' : 'text-white'}`}>{score}</span>
       </div>
 
-      <div className={`${bgCard} backdrop-blur-xl border rounded-3xl p-6 text-center`}>
-        <Lightbulb size={28} className="text-yellow-500 mx-auto mb-3" />
-        <h2 className={`text-xl font-bold mb-2 ${textColor}`}>{question.text}</h2>
-        <p className={`text-sm mb-6 ${subTextColor}`}>{question.hint}</p>
-        <div className="flex justify-center gap-4 flex-wrap mb-6">
-          {question.items.map((item, i) => (
-            <button key={i} onClick={() => handleAnswer(i)} disabled={showResult}
-              className={`text-5xl w-20 h-20 rounded-2xl transition-all active:scale-90 shadow-lg ${
+      <div className={`${light ? 'bg-white border-gray-200' : 'bg-white/10 border-white/20'} backdrop-blur-xl border rounded-3xl p-6 text-center`}>
+        <div className="text-6xl mb-6">{question.image}</div>
+        <div className="grid grid-cols-2 gap-4 max-w-xs mx-auto">
+          {question.options.map(word => (
+            <button key={word} onClick={() => handleAnswer(word)} disabled={showResult}
+              className={`py-3 px-4 rounded-xl text-lg font-medium transition-all active:scale-90 shadow-lg ${
                 showResult
-                  ? i === question.correct ? 'bg-green-400/80 border-2 border-green-300 scale-110 animate-pop'
-                  : i === selected ? 'bg-red-400/80 border-2 border-red-300 animate-shake'
+                  ? word === question.word ? 'bg-green-400/80 border-2 border-green-300 text-white scale-105 animate-pop'
+                  : word === selected ? 'bg-red-400/80 border-2 border-red-300 text-white'
                   : 'bg-gray-100 text-gray-400'
                 : 'bg-gray-100 border-2 border-gray-300 text-gray-800 hover:bg-gray-200 hover:scale-105'
-              }`}>{item}</button>
+              }`}>{word}</button>
           ))}
         </div>
         {showResult && (
-          <div className="animate-slide-up">
-            <div className={`text-xl font-bold mb-2 ${selected === question.correct ? 'text-green-500' : 'text-red-500'}`}>{message}</div>
-            <p className={`text-sm ${subTextColor}`}>{question.explanation}</p>
+          <div className="mt-4 animate-slide-up">
+            <div className={`text-xl font-bold ${selected === question.word ? 'text-green-500' : 'text-red-500'}`}>{message}</div>
           </div>
         )}
       </div>

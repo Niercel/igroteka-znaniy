@@ -135,6 +135,12 @@ export default function Register() {
           </button>
         </form>
 
+        <div className="text-right">
+            <Link to="/reset-password" className="text-sm text-violet-400 hover:text-violet-300 transition-colors">
+              Забыли пароль?
+            </Link>
+        </div>
+
         <div className="flex items-center gap-4 my-6">
           <div className="flex-1 h-px bg-white/10"></div>
           <span className="text-white/30 text-sm">или</span>

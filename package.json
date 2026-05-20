@@ -33,6 +33,7 @@
     "@tiptap/pm": "^3.22.3",
     "@tiptap/react": "^3.22.3",
     "@tiptap/starter-kit": "^3.22.3",
+    "canvas-confetti": "^1.9.4",
     "dayjs": "^1.11.20",
     "embla-carousel": "^8.6.0",
     "embla-carousel-react": "^8.6.0",

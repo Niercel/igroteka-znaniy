@@ -1,15 +1,16 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { collection, addDoc, query, where, getDocs, doc, deleteDoc } from 'firebase/firestore'
+import {
+  collection, addDoc, query, where, getDocs, doc, deleteDoc
+} from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useAuth } from '../context/AuthContext'
-import AnimatedBackground from '../components/AnimatedBackground'
-import { Plus, Trash2, Play, User, LogOut, Home, Sparkles } from 'lucide-react'
-import seedDatabase from '../utils/seedData'
-
+import {
+  Plus, Trash2, Play, LogOut, Home, Sparkles, Baby, Users, TrendingUp
+} from 'lucide-react'
 
 export default function Dashboard() {
-  const { user, logout } = useAuth()
+  const { user, isAdmin, logout } = useAuth()
   const navigate = useNavigate()
   const [children, setChildren] = useState([])
   const [showForm, setShowForm] = useState(false)
@@ -18,36 +19,21 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  const [seeding, setSeeding] = useState(false)
-
-const handleSeed = async () => {
-  setSeeding(true)
-  try {
-    await seedDatabase()
-    alert('База заполнена!')
-  } catch (err) {
-    alert('Ошибка: ' + err.message)
-  } finally {
-    setSeeding(false)
-  }
-}
 
   useEffect(() => {
-    if (!user) {
-      navigate('/login')
+    if (!user) { navigate('/login'); return }
+    if (isAdmin) {
+      setLoading(false)
       return
     }
     loadChildren()
-  }, [user])
+  }, [user, isAdmin])
 
   const loadChildren = async () => {
     try {
       const q = query(collection(db, 'children'), where('parentId', '==', user.uid))
       const snapshot = await getDocs(q)
-      const childrenList = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }))
+      const childrenList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
       setChildren(childrenList)
     } catch (err) {
       console.error('Ошибка загрузки:', err)
@@ -119,32 +105,58 @@ const handleSeed = async () => {
     return 'лет'
   }
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    )
+  }
+
+  // Администратор видит только кнопку перехода в админ-панель
+  if (isAdmin) {
+    return (
+      <div className="min-h-screen relative">
+        <div className="relative z-10 max-w-4xl mx-auto px-4 py-8 text-center">
+          <div className="bg-white/80 backdrop-blur-xl border border-gray-200 rounded-3xl p-8 shadow-xl">
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">Вы администратор</h2>
+            <p className="text-gray-500 mb-6">Вам доступно управление сайтом через админ‑панель.</p>
+            <button
+              onClick={() => navigate('/admin')}
+              className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-xl font-bold hover:scale-105 transition-transform shadow-lg"
+            >
+              Перейти в админ‑панель
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e]">
-      <AnimatedBackground />
-      <button onClick={handleSeed} disabled={seeding}
-  className="bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 px-4 py-2 rounded-lg text-sm transition-colors">
-  {seeding ? '...' : '🌱 Заполнить БД'}
-</button>
-      
+    <div className="min-h-screen relative">
       <div className="relative z-10 max-w-4xl mx-auto px-4 py-8">
-        {/* Верхняя панель */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div>
-            <h1 className="text-white text-3xl font-bold">🎓 Личный кабинет</h1>
-            <p className="text-white/40 text-sm mt-1">{user?.email}</p>
+            <h1 className="text-3xl font-extrabold bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-400 bg-clip-text text-transparent">
+              Личный кабинет
+            </h1>
+            <p className="text-emerald-500 text-sm mt-1 flex items-center gap-1">
+              <Users size={14} />
+              {user?.email}
+            </p>
           </div>
           <div className="flex gap-3">
             <button 
               onClick={() => navigate('/')}
-              className="flex items-center gap-2 text-white/60 hover:text-white px-4 py-2 rounded-lg transition-colors text-sm border border-white/10 hover:border-white/20"
+              className="flex items-center gap-2 text-emerald-600 hover:text-emerald-700 px-4 py-2 rounded-xl bg-white/80 backdrop-blur-sm shadow-md hover:shadow-lg transition-all"
             >
               <Home size={16} />
               На главную
             </button>
             <button 
               onClick={handleLogout}
-              className="flex items-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 px-4 py-2 rounded-lg transition-colors text-sm border border-red-500/20"
+              className="flex items-center gap-2 text-rose-500 hover:text-rose-600 px-4 py-2 rounded-xl bg-white/80 backdrop-blur-sm shadow-md hover:shadow-lg transition-all"
             >
               <LogOut size={16} />
               Выйти
@@ -152,68 +164,69 @@ const handleSeed = async () => {
           </div>
         </div>
 
-        {/* Уведомления */}
         {success && (
-          <div className="bg-green-500/20 border border-green-500/50 rounded-xl p-3 mb-4 text-green-300 text-sm flex items-center gap-2 animate-fade-in">
-            <Sparkles size={16} /> {success}
+          <div className="bg-emerald-100 border border-emerald-200 rounded-2xl p-3 mb-4 text-emerald-700 text-sm flex items-center gap-2 animate-slide-up">
+            <Sparkles size={16} className="text-emerald-500" />
+            {success}
           </div>
         )}
 
-        {/* Секция детей */}
-        <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-8">
+        <div className="bg-white/80 backdrop-blur-xl border border-white/40 rounded-3xl p-8 shadow-xl">
           <div className="flex justify-between items-center mb-6">
             <div>
-              <h2 className="text-white text-2xl font-semibold">Мои дети</h2>
-              <p className="text-white/40 text-sm mt-1">{children.length} {getChildWord(children.length)}</p>
+              <h2 className="text-2xl font-bold text-gray-800">Мои дети</h2>
+              <p className="text-gray-500 text-sm mt-1">
+                {children.length === 0 ? 'Нет добавленных детей' : 
+                 `${children.length} ${children.length === 1 ? 'ребёнок' : children.length >= 2 && children.length <= 4 ? 'ребёнка' : 'детей'}`}
+              </p>
             </div>
             <button 
               onClick={() => setShowForm(!showForm)}
-              className="bg-gradient-to-r from-violet-500 to-indigo-500 hover:from-violet-600 hover:to-indigo-600 text-white px-5 py-2.5 rounded-full text-sm font-semibold transition-all flex items-center gap-2 shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40"
+              className="bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-500 hover:to-teal-500 text-white px-5 py-2.5 rounded-full text-sm font-semibold transition-all flex items-center gap-2 shadow-lg hover:shadow-xl"
             >
               <Plus size={18} />
               Добавить
             </button>
           </div>
 
-          {/* Форма добавления */}
           {showForm && (
-            <form onSubmit={handleAddChild} className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6 animate-slide-up">
-              <h3 className="text-white text-lg font-semibold mb-4 flex items-center gap-2">
-                <Sparkles size={20} className="text-violet-400" />
+            <form onSubmit={handleAddChild} className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-6 mb-6 animate-slide-up">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <Baby size={20} className="text-emerald-500" />
                 Новый ребёнок
               </h3>
               
               {error && (
-                <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3 mb-4 text-red-300 text-sm">
+                <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 mb-4 text-rose-600 text-sm">
                   ⚠️ {error}
                 </div>
               )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
-                  <label className="block text-white/70 text-sm mb-1.5 font-medium">Имя</label>
+                  <label className="block text-gray-700 text-sm mb-1.5 font-medium">Имя</label>
                   <input
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full bg-white/5 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/40 outline-none focus:border-violet-400 focus:bg-white/10 transition-all"
+                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-800 placeholder-gray-400 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all"
                     placeholder="Например, Миша"
                   />
                 </div>
                 <div>
-                  <label className="block text-white/70 text-sm mb-1.5 font-medium">Возраст</label>
+                  <label className="block text-gray-700 text-sm mb-1.5 font-medium">Возраст</label>
                   <select
                     value={age}
                     onChange={(e) => setAge(e.target.value)}
-                    className="w-full bg-white/5 border border-white/20 rounded-xl px-4 py-3 text-white outline-none focus:border-violet-400 focus:bg-white/10 transition-all appearance-none cursor-pointer"
+                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-800 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all cursor-pointer"
                   >
-                    <option value="" className="bg-gray-800">Выберите возраст</option>
-                    <option value="3" className="bg-gray-800">3 года</option>
-                    <option value="4" className="bg-gray-800">4 года</option>
-                    <option value="5" className="bg-gray-800">5 лет</option>
-                    <option value="6" className="bg-gray-800">6 лет</option>
-                    <option value="7" className="bg-gray-800">7 лет</option>
-                    <option value="8" className="bg-gray-800">8 лет</option>
+                    <option value="">Выберите возраст</option>
+                    <option value="3">3 года</option>
+                    <option value="4">4 года</option>
+                    <option value="5">5 лет</option>
+                    <option value="6">6 лет</option>
+                    <option value="7">7 лет</option>
+                    <option value="8">8 лет</option>
                   </select>
                 </div>
               </div>
@@ -221,7 +234,7 @@ const handleSeed = async () => {
               <div className="flex gap-3">
                 <button
                   type="submit"
-                  className="bg-gradient-to-r from-violet-500 to-indigo-500 hover:from-violet-600 hover:to-indigo-600 text-white px-6 py-2.5 rounded-full text-sm font-semibold transition-all"
+                  className="bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-500 hover:to-teal-500 text-white px-6 py-2.5 rounded-full text-sm font-semibold transition-all shadow-md"
                 >
                   Сохранить
                 </button>
@@ -231,7 +244,7 @@ const handleSeed = async () => {
                     setShowForm(false)
                     setError('')
                   }}
-                  className="text-white/50 hover:text-white px-6 py-2.5 rounded-full text-sm transition-colors"
+                  className="text-gray-500 hover:text-gray-700 px-6 py-2.5 rounded-full text-sm transition-colors"
                 >
                   Отмена
                 </button>
@@ -239,24 +252,18 @@ const handleSeed = async () => {
             </form>
           )}
 
-          {/* Список детей */}
-          {loading ? (
-            <div className="text-center py-12">
-              <div className="w-10 h-10 border-2 border-violet-400 border-t-transparent rounded-full animate-spin mx-auto"></div>
-              <p className="text-white/50 mt-4">Загрузка...</p>
-            </div>
-          ) : children.length === 0 ? (
+          {children.length === 0 ? (
             <div className="text-center py-16">
-              <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4">
-                <User size={40} className="text-white/20" />
+              <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Baby size={40} className="text-emerald-400" />
               </div>
-              <p className="text-white/50 text-lg mb-2">Нет добавленных детей</p>
-              <p className="text-white/30 text-sm mb-4">Нажмите «Добавить», чтобы начать</p>
+              <p className="text-gray-500 text-lg mb-2">Нет добавленных детей</p>
+              <p className="text-gray-400 text-sm mb-4">Добавьте первого ребёнка, чтобы начать обучение</p>
               <button 
                 onClick={() => setShowForm(true)}
-                className="text-violet-400 hover:text-violet-300 text-sm font-medium transition-colors"
+                className="text-emerald-500 hover:text-emerald-600 text-sm font-medium transition-colors"
               >
-                + Добавить первого ребёнка
+                + Добавить ребёнка
               </button>
             </div>
           ) : (
@@ -264,33 +271,42 @@ const handleSeed = async () => {
               {children.map((child) => (
                 <div
                   key={child.id}
-                  className="bg-white/5 border border-white/10 rounded-2xl p-5 hover:border-violet-400/30 transition-all group hover:bg-white/8"
+                  className="bg-white border border-gray-100 rounded-2xl p-5 hover:border-emerald-200 hover:shadow-lg transition-all group"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-14 h-14 bg-gradient-to-br from-violet-500/20 to-indigo-500/20 rounded-2xl flex items-center justify-center text-3xl">
+                      <div className="w-14 h-14 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-2xl flex items-center justify-center text-3xl shadow-sm">
                         {getAgeEmoji(child.age)}
                       </div>
                       <div>
-                        <h3 className="text-white text-lg font-semibold">{child.name}</h3>
-                        <p className="text-white/40 text-sm">{child.age} {getAgeWord(child.age)}</p>
+                        <h3 className="text-gray-800 text-lg font-semibold">{child.name}</h3>
+                        <p className="text-gray-400 text-sm">{child.age} {getAgeWord(child.age)}</p>
                       </div>
                     </div>
                     <button
                       onClick={() => handleDeleteChild(child.id, child.name)}
-                      className="text-white/10 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 p-1"
+                      className="text-gray-300 hover:text-rose-400 transition-colors opacity-0 group-hover:opacity-100 p-1"
                     >
                       <Trash2 size={18} />
                     </button>
                   </div>
 
-                  <button
-                    onClick={() => navigate(`/games/${child.id}`)}
-                    className="w-full mt-4 bg-gradient-to-r from-violet-500 to-indigo-500 hover:from-violet-600 hover:to-indigo-600 text-white py-3 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 shadow-lg shadow-violet-500/20 hover:shadow-violet-500/40"
-                  >
-                    <Play size={16} />
-                    Играть
-                  </button>
+                  <div className="flex gap-2 mt-4">
+                    <button
+                      onClick={() => navigate(`/games/${child.id}`)}
+                      className="flex-1 bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-500 hover:to-teal-500 text-white py-3 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
+                    >
+                      <Play size={16} />
+                      Играть
+                    </button>
+                    <button
+                      onClick={() => navigate(`/stats/${child.id}`)}
+                      className="flex-1 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 py-3 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 shadow-sm"
+                    >
+                      <TrendingUp size={16} />
+                      Статистика
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -299,11 +315,4 @@ const handleSeed = async () => {
       </div>
     </div>
   )
-}
-
-function getChildWord(count) {
-  if (count === 0) return 'детей'
-  if (count === 1) return 'ребёнок'
-  if (count >= 2 && count <= 4) return 'ребёнка'
-  return 'детей'
 }

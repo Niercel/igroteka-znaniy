@@ -2,35 +2,16 @@ import { collection, getDocs } from 'firebase/firestore'
 import { db } from '../firebase/config'
 
 // ==================== МАТЕМАТИКА ====================
-export const generateMathQuestion = (level, range = 20, operatorsList = ['+', '-']) => {
+export const generateMathQuestion = (range = 20, operatorsList = ['+', '-']) => {
   const operator = operatorsList[Math.floor(Math.random() * operatorsList.length)]
   let a, b, answer
-
   switch (operator) {
-    case '+':
-      answer = Math.floor(Math.random() * (range - 1)) + 1
-      a = Math.floor(Math.random() * answer)
-      b = answer - a
-      break
-    case '-':
-      a = Math.floor(Math.random() * range) + 2
-      b = Math.floor(Math.random() * (a - 1)) + 1
-      answer = a - b
-      break
-    case '×':
-      a = Math.floor(Math.random() * Math.min(range / 2, 5)) + 1
-      b = Math.floor(Math.random() * Math.min(range / 2, 5)) + 1
-      answer = a * b
-      break
-    case '÷':
-      b = Math.floor(Math.random() * Math.min(range / 2, 5)) + 1
-      answer = Math.floor(Math.random() * Math.min(range / 2, 5)) + 1
-      a = b * answer
-      break
-    default:
-      a = 2; b = 2; answer = 4
+    case '+': answer = Math.floor(Math.random() * (range - 1)) + 1; a = Math.floor(Math.random() * answer); b = answer - a; break
+    case '-': a = Math.floor(Math.random() * range) + 2; b = Math.floor(Math.random() * (a - 1)) + 1; answer = a - b; break
+    case '×': a = Math.floor(Math.random() * Math.min(range / 2, 5)) + 1; b = Math.floor(Math.random() * Math.min(range / 2, 5)) + 1; answer = a * b; break
+    case '÷': b = Math.floor(Math.random() * Math.min(range / 2, 5)) + 1; answer = Math.floor(Math.random() * Math.min(range / 2, 5)) + 1; a = b * answer; break
+    default: a = 2; b = 2; answer = 4
   }
-
   const options = [answer]
   const r = Math.floor(range / 3) || 2
   while (options.length < 4) {
@@ -38,68 +19,115 @@ export const generateMathQuestion = (level, range = 20, operatorsList = ['+', '-
     const fake = Math.random() > 0.5 ? answer + offset : answer - offset
     if (fake > 0 && !options.includes(fake)) options.push(fake)
   }
-
-  return {
-    text: `${a} ${operator} ${b} = ?`,
-    answer,
-    options: options.sort(() => Math.random() - 0.5),
-    explanation: `${a} ${operator} ${b} = ${answer}`,
-  }
+  return { text: `${a} ${operator} ${b} = ?`, answer, options: options.sort(() => Math.random() - 0.5), explanation: `${a} ${operator} ${b} = ${answer}` }
 }
 
 // ==================== ПАМЯТЬ ====================
 export const generateMemoryCards = (pairsCount) => {
   const emojis = ['🌟', '🎈', '🌸', '🐱', '🍎', '🚀', '🎵', '🌈', '🦋', '🍕', '🎮', '💎', '🐶', '🌻', '🍇', '🎪']
   const selected = emojis.sort(() => Math.random() - 0.5).slice(0, pairsCount)
-  const cards = [...selected, ...selected].map((emoji, index) => ({
-    id: index,
-    emoji,
-    pairId: index < pairsCount ? index : index - pairsCount,
-  }))
+  const cards = [...selected, ...selected].map((emoji, index) => ({ id: index, emoji, pairId: index < pairsCount ? index : index - pairsCount }))
   return cards.sort(() => Math.random() - 0.5)
 }
 
-// ==================== ЛОГИКА ====================
-export const generateLogicQuestion = async () => {
-  const snap = await getDocs(collection(db, 'logicCategories'))
-  const categories = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-  const mainCategory = categories[Math.floor(Math.random() * categories.length)]
-  const otherCategory = categories.filter(c => c.id !== mainCategory.id)[Math.floor(Math.random() * (categories.length - 1))]
-  const mainItems = [...mainCategory.emojis].sort(() => Math.random() - 0.5).slice(0, 3)
-  const oddItem = otherCategory.emojis[Math.floor(Math.random() * otherCategory.emojis.length)]
-  const allItems = [...mainItems, oddItem].sort(() => Math.random() - 0.5)
-  return {
-    text: 'Найди лишнее!',
-    hint: `Все предметы относятся к категории «${mainCategory.name}», кроме одного`,
-    items: allItems,
-    correct: allItems.indexOf(oddItem),
-    category: mainCategory.name,
-    oddItem,
-    explanation: `«${oddItem}» лишний, потому что он из категории «${otherCategory.name}», а остальные — из «${mainCategory.name}».`,
-  }
-}
+// ==================== СРАВНЕНИЕ ЧИСЕЛ ====================
+export const generateCompareQuestion = (range) => ({ a: Math.floor(Math.random() * range) + 1, b: Math.floor(Math.random() * range) + 1 })
 
-// ==================== РАЗВИТИЕ РЕЧИ ====================
-export const getSpeechWord = async (level) => {
-  const snap = await getDocs(collection(db, 'words'))
-  const words = snap.docs.map(d => d.data()).filter(w => w.level === level)
-  return words[Math.floor(Math.random() * words.length)] || { word: 'кот', image: '🐱' }
-}
-
+// ==================== ПРОВЕРКА ПРОИЗНОШЕНИЯ ====================
 export const checkPronunciation = (target, spoken) => {
   if (!spoken) return 0
-  const t = target.toLowerCase().trim()
-  const s = spoken.toLowerCase().trim()
+  const t = target.toLowerCase().trim(), s = spoken.toLowerCase().trim()
   if (t === s) return 100
   const maxLen = Math.max(t.length, s.length)
   let matches = 0
-  for (let i = 0; i < maxLen; i++) { if (t[i] === s[i]) matches++ }
+  for (let i = 0; i < maxLen; i++) if (t[i] === s[i]) matches++
   return Math.round((matches / maxLen) * 100)
 }
 
-// ==================== ОБУЧЕНИЕ ЧТЕНИЮ ====================
-export const getBuildWord = async (level) => {
-  const snap = await getDocs(collection(db, 'buildWords'))
-  const words = snap.docs.map(d => d.data()).filter(w => w.level === level)
-  return words[Math.floor(Math.random() * words.length)] || { word: 'КОТ', image: '🐱' }
+// ==================== ЗАГРУЗКА КОНТЕНТА ИГРЫ ====================
+export const loadGameContent = async (gameId) => {
+  const snap = await getDocs(collection(db, 'games', gameId, 'content'))
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+}
+
+// ==================== ЛОГИКА (Что лишнее?) ====================
+export const generateLogicQuestion = async (gameId) => {
+  const items = await loadGameContent(gameId)
+  const categories = items.filter(i => i.categoryName)
+  if (categories.length < 2) {
+    return { text: 'Найди лишнее!', hint: 'Недостаточно категорий', items: [], correct: 0, explanation: '' }
+  }
+  const main = categories[Math.floor(Math.random() * categories.length)]
+  const others = categories.filter(c => c.categoryName !== main.categoryName)
+  const other = others[Math.floor(Math.random() * others.length)]
+  const mainEmojis = main.emojis.sort(() => Math.random() - 0.5).slice(0, 3)
+  const odd = other.emojis[Math.floor(Math.random() * other.emojis.length)]
+  const allItems = [...mainEmojis, odd].sort(() => Math.random() - 0.5)
+  return {
+    text: 'Найди лишнее!',
+    hint: `Все предметы относятся к категории «${main.categoryName}», кроме одного`,
+    items: allItems,
+    correct: allItems.indexOf(odd),
+    category: main.categoryName,
+    oddItem: odd,
+    explanation: `«${odd}» лишний, потому что он из категории «${other.categoryName}», а остальные — из «${main.categoryName}».`
+  }
+}
+
+// ==================== ЧТЕНИЕ СЛОВА (speech-1) ====================
+export const getSpeechWord = async (gameId, level) => {
+  const items = await loadGameContent(gameId)
+  const words = items.filter(w => w.level === level && w.word)
+  return words.length ? words[Math.floor(Math.random() * words.length)] : { word: 'кот', image: '🐱' }
+}
+
+// ==================== ПРЕДЛОЖЕНИЕ ДЛЯ ЧТЕНИЯ (speech-2) ====================
+export const getSentenceForReading = async (gameId, level) => {
+  const items = await loadGameContent(gameId)
+  const filtered = items.filter(s => s.level === level && s.text)
+  return filtered.length ? filtered[Math.floor(Math.random() * filtered.length)] : { text: 'Мама мыла раму', image: '🧼' }
+}
+
+// ==================== ПРОВЕРКА ПРЕДЛОЖЕНИЯ ====================
+export const checkSentenceAccuracy = (target, spoken, startTime) => {
+  if (!spoken) return { accuracy: 0, speed: 0, wordsMatched: 0, totalWords: 0 }
+  const targetWords = target.toLowerCase().trim().split(/\s+/)
+  const spokenWords = spoken.toLowerCase().trim().split(/\s+/)
+  const totalWords = targetWords.length
+  let wordsMatched = 0
+  for (let i = 0; i < Math.min(targetWords.length, spokenWords.length); i++) {
+    if (targetWords[i] === spokenWords[i]) wordsMatched++
+  }
+  const accuracy = Math.round((wordsMatched / totalWords) * 100)
+  const elapsedMinutes = (Date.now() - startTime) / 60000
+  const speed = elapsedMinutes > 0 ? Math.round(wordsMatched / elapsedMinutes) : 0
+  return { accuracy, speed, wordsMatched, totalWords }
+}
+
+// ==================== СОСТАВЬ ПРЕДЛОЖЕНИЕ (speech-3) ====================
+export const getSentence = async (gameId, level) => {
+  const items = await loadGameContent(gameId)
+  const filtered = items.filter(i => i.level === level && i.words)
+  return filtered.length ? filtered[Math.floor(Math.random() * filtered.length)] : { words: ['Мама', 'моет', 'раму'] }
+}
+
+// ==================== СОБЕРИ СЛОВО (reading-1) ====================
+export const getBuildWord = async (gameId, level) => {
+  const items = await loadGameContent(gameId)
+  const filtered = items.filter(w => w.level === level && w.word)
+  return filtered.length ? filtered[Math.floor(Math.random() * filtered.length)] : { word: 'КОТ', image: '🐱' }
+}
+
+// ==================== БУКВА ПОТЕРЯЛАСЬ (reading-2) ====================
+export const getMissingLetter = async (gameId, level) => {
+  const items = await loadGameContent(gameId)
+  const filtered = items.filter(i => i.level === level && i.missingIndex !== undefined)
+  return filtered.length ? filtered[Math.floor(Math.random() * filtered.length)] : { word: 'кот', missingIndex: 1, options: ['о','а','у'] }
+}
+
+// ==================== СЛОГИ (reading-3) ====================
+export const getSyllables = async (gameId, level) => {
+  const items = await loadGameContent(gameId)
+  const filtered = items.filter(i => i.level === level && i.syllables)
+  return filtered.length ? filtered[Math.floor(Math.random() * filtered.length)] : { syllables: ['ко','т'], word: 'кот' }
 }

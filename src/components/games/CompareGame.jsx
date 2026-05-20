@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
-import { Star, Lightbulb, HelpCircle } from 'lucide-react'
-import { generateLogicQuestion } from '../../utils/gameAlgorithms'
-import { getRandomMessage } from '../../utils/gameContent'
+import { Star, HelpCircle } from 'lucide-react'
 import { DIFFICULTY_LEVELS, getSettings, getDifficultyLabel } from '../../utils/gameSettings'
+import { generateCompareQuestion } from '../../utils/gameAlgorithms'
+import { getRandomMessage } from '../../utils/gameContent'
 import HintModal from '../HintModal'
 
-export default function LogicGame({ game, onComplete, light }) {
+export default function CompareGame({ game, onComplete, light }) {
   const [difficulty, setDifficulty] = useState('medium')
   const [round, setRound] = useState(0)
   const [score, setScore] = useState(0)
@@ -13,35 +13,31 @@ export default function LogicGame({ game, onComplete, light }) {
   const [selected, setSelected] = useState(null)
   const [showResult, setShowResult] = useState(false)
   const [message, setMessage] = useState('')
-  const [loading, setLoading] = useState(true)
   const [finished, setFinished] = useState(false)
   const [showHint, setShowHint] = useState(false)
 
-  const settings = getSettings('logic', difficulty)
+  const settings = getSettings('compare', difficulty)
   const totalRounds = settings.rounds
 
   useEffect(() => {
-    setLoading(true)
-    generateLogicQuestion(game.id).then(q => {
-      setQuestion(q)
-      setSelected(null)
-      setShowResult(false)
-      setMessage('')
-      setLoading(false)
-    })
-  }, [round, difficulty, game.id])
+    setQuestion(generateCompareQuestion(settings.numberRange))
+    setSelected(null)
+    setShowResult(false)
+    setMessage('')
+  }, [round, difficulty])
 
-  const handleAnswer = (index) => {
-    if (showResult || finished) return
-    setSelected(index)
+  const handleAnswer = (sign) => {
+    if (showResult || finished || !question) return
+    let correct = false
+    if (sign === '>') correct = question.a > question.b
+    else if (sign === '<') correct = question.a < question.b
+    else correct = question.a === question.b
+
+    setSelected(sign)
     setShowResult(true)
-    const correct = index === question.correct
-    if (correct) {
-      setScore(s => s + 1)
-      setMessage(getRandomMessage(game.correctMessages))
-    } else {
-      setMessage(getRandomMessage(game.incorrectMessages))
-    }
+    setMessage(getRandomMessage(correct ? game.correctMessages : game.incorrectMessages))
+    if (correct) setScore(s => s + 1)
+
     setTimeout(() => {
       if (round + 1 < totalRounds) {
         setRound(r => r + 1)
@@ -49,15 +45,14 @@ export default function LogicGame({ game, onComplete, light }) {
         setFinished(true)
         onComplete(score + (correct ? 1 : 0), totalRounds)
       }
-    }, 2000)
+    }, 1500)
   }
 
   if (finished) return null
-  if (loading) return <div className="text-center py-10"><div className="w-8 h-8 border-2 border-purple-400 border-t-transparent rounded-full animate-spin mx-auto" /></div>
+  if (!question) return null
 
   const bgCard = light ? 'bg-white border-gray-200' : 'bg-white/10 border-white/20'
   const textColor = light ? 'text-gray-800' : 'text-white'
-  const subTextColor = light ? 'text-gray-500' : 'text-white/60'
 
   return (
     <div>
@@ -87,25 +82,30 @@ export default function LogicGame({ game, onComplete, light }) {
       </div>
 
       <div className={`${bgCard} backdrop-blur-xl border rounded-3xl p-6 text-center`}>
-        <Lightbulb size={28} className="text-yellow-500 mx-auto mb-3" />
-        <h2 className={`text-xl font-bold mb-2 ${textColor}`}>{question.text}</h2>
-        <p className={`text-sm mb-6 ${subTextColor}`}>{question.hint}</p>
-        <div className="flex justify-center gap-4 flex-wrap mb-6">
-          {question.items.map((item, i) => (
-            <button key={i} onClick={() => handleAnswer(i)} disabled={showResult}
-              className={`text-5xl w-20 h-20 rounded-2xl transition-all active:scale-90 shadow-lg ${
-                showResult
-                  ? i === question.correct ? 'bg-green-400/80 border-2 border-green-300 scale-110 animate-pop'
-                  : i === selected ? 'bg-red-400/80 border-2 border-red-300 animate-shake'
-                  : 'bg-gray-100 text-gray-400'
-                : 'bg-gray-100 border-2 border-gray-300 text-gray-800 hover:bg-gray-200 hover:scale-105'
-              }`}>{item}</button>
-          ))}
+        <div className="text-5xl mb-6">
+          <span className={textColor}>{question.a}</span>
+          <span className={`mx-4 ${light ? 'text-gray-400' : 'text-white/50'}`}>?</span>
+          <span className={textColor}>{question.b}</span>
+        </div>
+        <div className="flex justify-center gap-4 mt-6">
+          {['>', '<', '='].map(sign => {
+            const isCorrect = showResult &&
+              ((sign === '>' && question.a > question.b) || (sign === '<' && question.a < question.b) || (sign === '=' && question.a === question.b))
+            const isWrong = showResult && selected === sign && !isCorrect
+            return (
+              <button key={sign} onClick={() => handleAnswer(sign)} disabled={showResult}
+                className={`w-16 h-16 text-3xl rounded-2xl font-bold transition-all transform active:scale-90 ${
+                  isCorrect ? 'bg-green-400/80 border-2 border-green-300 scale-110 text-white animate-pop'
+                  : isWrong ? 'bg-red-400/80 border-2 border-red-300 text-white animate-shake'
+                  : showResult ? 'bg-gray-100 text-gray-400'
+                  : 'bg-gray-100 border-2 border-gray-300 text-gray-800 hover:bg-gray-200 hover:scale-105'
+                }`}>{sign}</button>
+            )
+          })}
         </div>
         {showResult && (
-          <div className="animate-slide-up">
-            <div className={`text-xl font-bold mb-2 ${selected === question.correct ? 'text-green-500' : 'text-red-500'}`}>{message}</div>
-            <p className={`text-sm ${subTextColor}`}>{question.explanation}</p>
+          <div className="mt-6 animate-slide-up">
+            <div className={`text-xl font-bold mb-2 ${selected === '>' && question.a > question.b || selected === '<' && question.a < question.b || selected === '=' && question.a === question.b ? 'text-green-500' : 'text-red-500'}`}>{message}</div>
           </div>
         )}
       </div>
