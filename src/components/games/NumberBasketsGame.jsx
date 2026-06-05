@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react'
-import { Star, HelpCircle } from 'lucide-react'
-import { DIFFICULTY_LEVELS, getSettings, getDifficultyLabel } from '../../utils/gameSettings'
+import { Star, HelpCircle, Settings } from 'lucide-react'
+import { getSettings, getDifficultyLabel } from '../../utils/gameSettings'
 import { getRandomMessage } from '../../utils/gameContent'
 import HintModal from '../HintModal'
 
 const ITEMS = ['🍎','🍊','🍇','🍒','🥝','🍌','🍉','🥕','🌽','🧸']
 
-export default function NumberBasketsGame({ game, onComplete, light }) {
-  const [difficulty, setDifficulty] = useState('medium')
+export default function NumberBasketsGame({ game, onComplete, difficulty, onDifficultyChangeRequest, light }) {
   const [round, setRound] = useState(0)
   const [score, setScore] = useState(0)
   const [target, setTarget] = useState(0)
@@ -29,7 +28,22 @@ export default function NumberBasketsGame({ game, onComplete, light }) {
     setBasket([])
     setResult(null)
     setMessage('')
-  }, [round, difficulty])
+    setRound(0)
+    setScore(0)
+    setFinished(false)
+  }, [difficulty])
+
+  useEffect(() => {
+    if (!finished) {
+      const t = Math.floor(Math.random() * settings.targetRange) + 1
+      setTarget(t)
+      const count = t + 3 + Math.floor(Math.random() * 5)
+      setItems(Array.from({ length: count }, () => ITEMS[Math.floor(Math.random() * ITEMS.length)]))
+      setBasket([])
+      setResult(null)
+      setMessage('')
+    }
+  }, [round])
 
   const addToBasket = (index) => {
     if (result) return
@@ -63,13 +77,17 @@ export default function NumberBasketsGame({ game, onComplete, light }) {
       <HintModal isOpen={showHint} onClose={() => setShowHint(false)} title={game.title} instructions={game.instructions} />
 
       <div className="flex items-center justify-between mb-4">
-        <div className="flex gap-1 bg-gray-100 rounded-full p-1">
-          {DIFFICULTY_LEVELS.map(d => (
-            <button key={d} onClick={() => { setDifficulty(d); setRound(0); setScore(0); setFinished(false) }}
-              className={`py-1.5 px-3 rounded-full text-xs font-medium transition-all ${difficulty === d ? 'bg-purple-100 text-purple-700 shadow-md' : 'text-gray-600 hover:text-gray-800'}`}>
-              {getDifficultyLabel(d)}
-            </button>
-          ))}
+        <div className="flex items-center gap-2">
+          <span className={`text-sm font-medium ${light ? 'text-gray-700' : 'text-white'}`}>
+            {getDifficultyLabel(difficulty)}
+          </span>
+          <button
+            onClick={onDifficultyChangeRequest}
+            className={`w-8 h-8 rounded-full flex items-center justify-center ${light ? 'bg-gray-100 hover:bg-gray-200' : 'bg-white/20 hover:bg-white/30'}`}
+            title="Сменить сложность"
+          >
+            <Settings size={16} className={light ? 'text-gray-600' : 'text-white'} />
+          </button>
         </div>
         <button onClick={() => setShowHint(true)} className={`w-8 h-8 rounded-full flex items-center justify-center ${light ? 'bg-gray-100 hover:bg-gray-200' : 'bg-white/20 hover:bg-white/30'}`}>
           <HelpCircle size={16} className={light ? 'text-gray-600' : 'text-white'} />

@@ -4,6 +4,7 @@ import { doc, getDoc, addDoc, collection } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useAuth } from '../context/AuthContext'
 import GameResultModal from '../components/GameResultModal'
+import DifficultySelectModal from '../components/DifficultySelectModal'
 import MathGame from '../components/games/MathGame'
 import MemoryGame from '../components/games/MemoryGame'
 import LogicGame from '../components/games/LogicGame'
@@ -29,6 +30,9 @@ export default function Play() {
   const [finished, setFinished] = useState(false)
   const [finalScore, setFinalScore] = useState(0)
   const [maxScore, setMaxScore] = useState(0)
+  
+  const [difficulty, setDifficulty] = useState(null)
+  const [showDifficultyModal, setShowDifficultyModal] = useState(true)
 
   useEffect(() => {
     if (!user) { navigate('/login'); return }
@@ -43,15 +47,19 @@ export default function Play() {
     finally { setLoading(false) }
   }
 
-  // Сохранение прогресса в Firestore
+  const handleComplete = async (score, max) => {
+    setFinalScore(score)
+    setMaxScore(max)
+    setFinished(true)
+    await saveProgress(score, max)
+  }
+
   const saveProgress = async (score, max) => {
     try {
-      const gameDoc = await getDoc(doc(db, 'games', gameId))
-      const categoryId = gameDoc.exists() ? gameDoc.data().categoryId : null
       await addDoc(collection(db, 'progress'), {
         childId,
         gameId,
-        categoryId,
+        categoryId: game?.categoryId,
         gameType: game?.type,
         score,
         maxScore: max,
@@ -62,11 +70,16 @@ export default function Play() {
     }
   }
 
-  const handleComplete = async (score, max) => {
-    setFinalScore(score)
-    setMaxScore(max)
-    setFinished(true)
-    await saveProgress(score, max)
+  const handleDifficultySelect = (diff) => {
+    setDifficulty(diff)
+    setShowDifficultyModal(false)
+    setFinished(false)
+    setFinalScore(0)
+    setMaxScore(0)
+  }
+
+  const handleChangeDifficulty = () => {
+    setShowDifficultyModal(true)
   }
 
   if (loading) {
@@ -94,8 +107,14 @@ export default function Play() {
   }
 
   const renderGame = () => {
-    if (!game) return null
-    const props = { game, onComplete: handleComplete, light: true }
+    if (!game || !difficulty) return null
+    const props = { 
+      game, 
+      onComplete: handleComplete, 
+      difficulty,
+      onDifficultyChangeRequest: handleChangeDifficulty,
+      light: true 
+    }
     switch (game.type) {
       case 'math': return <MathGame {...props} />
       case 'memory': return <MemoryGame {...props} />
@@ -117,18 +136,35 @@ export default function Play() {
 
   return (
     <div className="min-h-screen">
-      <div className="relative z-10 max-w-2xl mx-auto px-4 py-6">
-        <div className="flex items-center justify-between mb-6">
-          <button onClick={() => navigate(`/games/${childId}`)} className="p-2 rounded-xl bg-white/80 backdrop-blur-sm hover:bg-white shadow-lg transition-all">
-            <ArrowLeft size={20} className="text-purple-500" />
-          </button>
-          <h1 className="text-xl font-bold text-gray-800">{game?.title}</h1>
-          <div className="w-10" />
+      <DifficultySelectModal
+        open={showDifficultyModal}
+        title={game?.title}
+        imageUrl={game?.imageUrl}
+        onSelect={handleDifficultySelect}
+        onClose={() => navigate(`/games/${childId}`)}
+      />
+      {difficulty && (
+        <div className="relative z-10 max-w-2xl mx-auto px-4 py-6">
+          <div className="flex items-center justify-between mb-6">
+            <button
+              onClick={() => navigate(`/games/${childId}`)}
+              className="p-2 rounded-xl bg-white/80 backdrop-blur-sm hover:bg-white shadow-lg transition-all"
+            >
+              <ArrowLeft size={20} className="text-purple-500" />
+            </button>
+            <h1 className="text-xl font-bold text-gray-800">{game?.title}</h1>
+            <button
+              onClick={handleChangeDifficulty}
+              className="p-2 rounded-xl bg-white/80 backdrop-blur-sm hover:bg-white shadow-lg text-xs font-medium text-gray-600"
+            >
+              Сложность
+            </button>
+          </div>
+          <div className="bg-white/80 backdrop-blur-xl border border-gray-200 rounded-3xl p-6 shadow-2xl">
+            {renderGame()}
+          </div>
         </div>
-        <div className="bg-white/80 backdrop-blur-xl border border-gray-200 rounded-3xl p-6 shadow-2xl">
-          {renderGame()}
-        </div>
-      </div>
+      )}
     </div>
   )
 }

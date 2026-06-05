@@ -10,8 +10,8 @@ export default function MissingLetterGame({ game, onComplete, light }) {
   const [round, setRound] = useState(0)
   const [score, setScore] = useState(0)
   const [question, setQuestion] = useState(null)
-  const [answers, setAnswers] = useState([])
-  const [currentGap, setCurrentGap] = useState(0)
+  const [answers, setAnswers] = useState([])          // массив введённых букв
+  const [currentGap, setCurrentGap] = useState(0)     // какой пропуск заполняем сейчас
   const [showResult, setShowResult] = useState(false)
   const [message, setMessage] = useState('')
   const [finished, setFinished] = useState(false)
@@ -23,22 +23,29 @@ export default function MissingLetterGame({ game, onComplete, light }) {
   const contentLevel = { easy: 1, medium: 2, hard: 3 }[difficulty]
 
   useEffect(() => {
-    setLoading(true)
-    getMissingLetter(game.id, contentLevel).then(data => {
-      setQuestion(data)
-      setAnswers(new Array(data.missingIndices.length).fill(''))
-      setCurrentGap(0)
-      setShowResult(false)
-      setMessage('')
-      setLoading(false)
-    })
-  }, [round, difficulty, game.id, contentLevel])
+    if (!finished) {
+      setLoading(true)
+      getMissingLetter(game.id, contentLevel).then(data => {
+        if (data) {
+          // Поддержка старого и нового формата
+          const indices = data.missingIndices || (data.missingIndex !== undefined ? [data.missingIndex] : [0])
+          setQuestion({ ...data, missingIndices: indices })
+          setAnswers(new Array(indices.length).fill(''))
+          setCurrentGap(0)
+          setShowResult(false)
+          setMessage('')
+        }
+        setLoading(false)
+      })
+    }
+  }, [round, difficulty, finished, game.id, contentLevel])
 
+  // Клавиатура
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (showResult || finished || !question) return
       const key = e.key.toUpperCase()
-      if (key.length === 1 && question.options.includes(key)) {
+      if (key.length === 1 && question.options?.includes(key)) {
         handleAnswer(key)
       }
     }
@@ -62,7 +69,7 @@ export default function MissingLetterGame({ game, onComplete, light }) {
     const wordArray = question.word.split('')
     let correct = true
     question.missingIndices.forEach((idx, i) => {
-      if (ans[i] !== wordArray[idx]) correct = false
+      if (ans[i]?.toUpperCase() !== wordArray[idx]?.toUpperCase()) correct = false
     })
     setShowResult(true)
     if (correct) {
@@ -79,7 +86,14 @@ export default function MissingLetterGame({ game, onComplete, light }) {
   }
 
   if (finished) return null
-  if (loading || !question) return <div className="text-center py-10"><div className="w-8 h-8 border-2 border-purple-400 border-t-transparent rounded-full animate-spin mx-auto" /></div>
+  if (loading) return (
+    <div className="text-center py-10">
+      <div className="w-8 h-8 border-2 border-purple-400 border-t-transparent rounded-full animate-spin mx-auto" />
+    </div>
+  )
+  if (!question) return (
+    <div className="text-center py-10 text-gray-500">Нет данных для этого уровня</div>
+  )
 
   const wordArray = question.word.split('')
   const displayWord = wordArray.map((ch, idx) => {
@@ -129,16 +143,21 @@ export default function MissingLetterGame({ game, onComplete, light }) {
           <p className="text-gray-500 text-sm mb-4">Выбери букву или нажми на клавиатуре</p>
         )}
         <div className="flex justify-center gap-4 flex-wrap">
-          {question.options.map(opt => (
-            <button key={opt} onClick={() => handleAnswer(opt)} disabled={showResult}
-              className={`w-16 h-16 text-3xl rounded-xl transition-all active:scale-90 shadow-lg ${
-                showResult
-                  ? opt === wordArray[question.missingIndices[currentGap]] ? 'bg-green-400/80 border-2 border-green-300 animate-pop'
-                  : answers.includes(opt) ? 'bg-red-400/80 border-2 border-red-300'
-                  : 'bg-gray-100 text-gray-400'
-                : 'bg-gray-100 border-2 border-gray-300 text-gray-800 hover:bg-gray-200 hover:scale-105'
-              }`}>{opt}</button>
-          ))}
+          {question.options?.map(opt => {
+            // Определяем, правильная ли эта буква для любого из пропусков
+            const isCorrectForAnyGap = question.missingIndices.some(idx => wordArray[idx]?.toUpperCase() === opt?.toUpperCase())
+            const isWrong = showResult && answers.includes(opt) && !isCorrectForAnyGap
+            return (
+              <button key={opt} onClick={() => handleAnswer(opt)} disabled={showResult}
+                className={`w-16 h-16 text-3xl rounded-xl transition-all active:scale-90 shadow-lg ${
+                  showResult
+                    ? isCorrectForAnyGap ? 'bg-green-400/80 border-2 border-green-300 animate-pop'
+                    : isWrong ? 'bg-red-400/80 border-2 border-red-300'
+                    : 'bg-gray-100 text-gray-400'
+                  : 'bg-gray-100 border-2 border-gray-300 text-gray-800 hover:bg-gray-200 hover:scale-105'
+                }`}>{opt}</button>
+            )
+          })}
         </div>
         {showResult && (
           <div className="mt-4 animate-slide-up">

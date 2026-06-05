@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react'
-import { Star, HelpCircle } from 'lucide-react'
-import { DIFFICULTY_LEVELS, getSettings, getDifficultyLabel } from '../../utils/gameSettings'
+import { Star, HelpCircle, Settings } from 'lucide-react'
+import { getSettings, getDifficultyLabel } from '../../utils/gameSettings'
 import { getBuildWord } from '../../utils/gameAlgorithms'
 import { getRandomMessage } from '../../utils/gameContent'
 import HintModal from '../HintModal'
 
-export default function ReadingGame({ game, onComplete, light }) {
-  const [difficulty, setDifficulty] = useState('medium')
+export default function ReadingGame({ game, onComplete, difficulty, onDifficultyChangeRequest, light }) {
   const [round, setRound] = useState(0)
   const [score, setScore] = useState(0)
   const [wordData, setWordData] = useState(null)
@@ -20,11 +19,26 @@ export default function ReadingGame({ game, onComplete, light }) {
   const [showHint, setShowHint] = useState(false)
 
   const settings = getSettings('reading', difficulty)
-  const totalRounds = settings.rounds // ← теперь rounds
+  const totalRounds = settings.rounds
   const contentLevel = { easy: 1, medium: 2, hard: 3 }[difficulty]
 
   useEffect(() => {
-    if (!finished) {
+    setLoading(true)
+    getBuildWord(game.id, contentLevel).then(w => {
+      setWordData(w)
+      setAvailable(w.word.split('').sort(() => Math.random() - 0.5))
+      setBuilt([])
+      setShowResult(false)
+      setMessage('')
+      setLoading(false)
+    })
+    setRound(0)
+    setScore(0)
+    setFinished(false)
+  }, [difficulty, game.id, contentLevel])
+
+  useEffect(() => {
+    if (!finished && !loading) {
       setLoading(true)
       getBuildWord(game.id, contentLevel).then(w => {
         setWordData(w)
@@ -35,9 +49,8 @@ export default function ReadingGame({ game, onComplete, light }) {
         setLoading(false)
       })
     }
-  }, [round, difficulty, finished, game.id, contentLevel])
+  }, [round])
 
-  // Поддержка клавиатуры
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (showResult || finished) return
@@ -49,16 +62,8 @@ export default function ReadingGame({ game, onComplete, light }) {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [available, built, showResult, finished])
 
-  const addLetter = (letter, idx) => {
-    if (showResult) return
-    setBuilt([...built, letter])
-    setAvailable(prev => prev.filter((_, i) => i !== idx))
-  }
-  const removeLetter = (idx) => {
-    if (showResult) return
-    setAvailable([...available, built[idx]])
-    setBuilt(prev => prev.filter((_, i) => i !== idx))
-  }
+  const addLetter = (letter, idx) => { if (showResult) return; setBuilt([...built, letter]); setAvailable(prev => prev.filter((_, i) => i !== idx)) }
+  const removeLetter = (idx) => { if (showResult) return; setAvailable([...available, built[idx]]); setBuilt(prev => prev.filter((_, i) => i !== idx)) }
 
   const check = () => {
     const correct = built.join('') === wordData.word
@@ -68,21 +73,13 @@ export default function ReadingGame({ game, onComplete, light }) {
     if (correct) setScore(s => s + 1)
 
     setTimeout(() => {
-      if (round + 1 < totalRounds) {
-        setRound(r => r + 1)
-      } else {
-        setFinished(true)
-        onComplete(score + (correct ? 1 : 0), totalRounds)
-      }
+      if (round + 1 < totalRounds) setRound(r => r + 1)
+      else { setFinished(true); onComplete(score + (correct ? 1 : 0), totalRounds) }
     }, 1200)
   }
 
   if (finished) return null
-  if (loading) return (
-    <div className="text-center py-10">
-      <div className="w-8 h-8 border-2 border-purple-400 border-t-transparent rounded-full animate-spin mx-auto" />
-    </div>
-  )
+  if (loading) return <div className="text-center py-10"><div className="w-8 h-8 border-2 border-purple-400 border-t-transparent rounded-full animate-spin mx-auto" /></div>
 
   const bgCard = light ? 'bg-white border-gray-200' : 'bg-white/10 border-white/20'
   const textColor = light ? 'text-gray-800' : 'text-white'
@@ -92,16 +89,19 @@ export default function ReadingGame({ game, onComplete, light }) {
       <HintModal isOpen={showHint} onClose={() => setShowHint(false)} title={game.title} instructions={game.instructions} />
 
       <div className="flex items-center justify-between mb-4">
-        <div className="flex gap-1 bg-gray-100 rounded-full p-1">
-          {DIFFICULTY_LEVELS.map(d => (
-            <button key={d} onClick={() => { setDifficulty(d); setRound(0); setScore(0); setFinished(false) }}
-              className={`py-1.5 px-3 rounded-full text-xs font-medium transition-all ${difficulty === d ? 'bg-purple-100 text-purple-700 shadow-md' : 'text-gray-600 hover:text-gray-800'}`}>
-              {getDifficultyLabel(d)}
-            </button>
-          ))}
+        <div className="flex items-center gap-2">
+          <span className={`text-sm font-medium ${light ? 'text-gray-700' : 'text-white'}`}>
+            {getDifficultyLabel(difficulty)}
+          </span>
+          <button
+            onClick={onDifficultyChangeRequest}
+            className={`w-8 h-8 rounded-full flex items-center justify-center ${light ? 'bg-gray-100 hover:bg-gray-200' : 'bg-white/20 hover:bg-white/30'}`}
+            title="Сменить сложность"
+          >
+            <Settings size={16} className={light ? 'text-gray-600' : 'text-white'} />
+          </button>
         </div>
-        <button onClick={() => setShowHint(true)}
-          className={`w-8 h-8 rounded-full flex items-center justify-center ${light ? 'bg-gray-100 hover:bg-gray-200' : 'bg-white/20 hover:bg-white/30'}`}>
+        <button onClick={() => setShowHint(true)} className={`w-8 h-8 rounded-full flex items-center justify-center ${light ? 'bg-gray-100 hover:bg-gray-200' : 'bg-white/20 hover:bg-white/30'}`}>
           <HelpCircle size={16} className={light ? 'text-gray-600' : 'text-white'} />
         </button>
       </div>
@@ -121,17 +121,13 @@ export default function ReadingGame({ game, onComplete, light }) {
           {built.length === 0 && !showResult && <span className="text-gray-400">Кликни на буквы или нажимай клавиши</span>}
           {built.map((l, i) => (
             <button key={i} onClick={() => removeLetter(i)} disabled={showResult}
-              className="w-14 h-14 bg-gradient-to-br from-purple-400 to-pink-400 text-white text-2xl font-bold rounded-2xl transform active:scale-90 transition-transform shadow-md">
-              {l}
-            </button>
+              className="w-14 h-14 bg-gradient-to-br from-purple-400 to-pink-400 text-white text-2xl font-bold rounded-2xl transform active:scale-90 transition-transform shadow-md">{l}</button>
           ))}
         </div>
         <div className="flex justify-center gap-2 flex-wrap">
           {available.map((l, i) => (
             <button key={i} onClick={() => addLetter(l, i)} disabled={showResult}
-              className="w-14 h-14 bg-gray-200 hover:bg-gray-300 text-gray-800 text-2xl font-bold rounded-2xl transform active:scale-90 transition-transform shadow-md">
-              {l}
-            </button>
+              className="w-14 h-14 bg-gray-200 hover:bg-gray-300 text-gray-800 text-2xl font-bold rounded-2xl transform active:scale-90 transition-transform shadow-md">{l}</button>
           ))}
         </div>
         <p className="text-gray-400 text-xs mt-2">Можно печатать буквы на клавиатуре</p>
@@ -142,10 +138,7 @@ export default function ReadingGame({ game, onComplete, light }) {
           </div>
         )}
         {!showResult && built.length === wordData?.word.length && (
-          <button onClick={check}
-            className="mt-6 bg-green-400 hover:bg-green-500 text-white px-8 py-3 rounded-full font-bold transition-transform hover:scale-105">
-            Проверить ✓
-          </button>
+          <button onClick={check} className="mt-6 bg-green-400 hover:bg-green-500 text-white px-8 py-3 rounded-full font-bold transition-transform hover:scale-105">Проверить ✓</button>
         )}
       </div>
     </div>

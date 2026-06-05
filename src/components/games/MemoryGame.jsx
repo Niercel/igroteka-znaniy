@@ -1,12 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
-import { Star, Timer, HelpCircle } from 'lucide-react'
+import { Star, Timer, HelpCircle, Settings } from 'lucide-react'
 import { generateMemoryCards } from '../../utils/gameAlgorithms'
 import { getRandomMessage } from '../../utils/gameContent'
-import { DIFFICULTY_LEVELS, getSettings, getDifficultyLabel } from '../../utils/gameSettings'
+import { getSettings, getDifficultyLabel } from '../../utils/gameSettings'
 import HintModal from '../HintModal'
 
-export default function MemoryGame({ game, onComplete, light }) {
-  const [difficulty, setDifficulty] = useState('medium')
+export default function MemoryGame({ game, onComplete, difficulty, onDifficultyChangeRequest, light }) {
   const [cards, setCards] = useState([])
   const [flipped, setFlipped] = useState([])
   const [matched, setMatched] = useState([])
@@ -28,6 +27,7 @@ export default function MemoryGame({ game, onComplete, light }) {
     setMoves(0)
     setTimer(0)
     setMessage('')
+    setFinished(false)
     startTimer()
     return () => stopTimer()
   }, [difficulty])
@@ -68,20 +68,23 @@ export default function MemoryGame({ game, onComplete, light }) {
   const cols = cards.length <= 12 ? 'grid-cols-4' : 'grid-cols-4'
   const bgCard = light ? 'bg-white border-gray-200' : 'bg-white/10 border-white/20'
   const textColor = light ? 'text-gray-800' : 'text-white'
-  const subTextColor = light ? 'text-gray-500' : 'text-white/60'
 
   return (
     <div>
       <HintModal isOpen={showHint} onClose={() => setShowHint(false)} title={game.title} instructions={game.instructions} />
 
       <div className="flex items-center justify-between mb-4">
-        <div className="flex gap-1 bg-gray-100 rounded-full p-1">
-          {DIFFICULTY_LEVELS.map(d => (
-            <button key={d} onClick={() => setDifficulty(d)}
-              className={`py-1.5 px-3 rounded-full text-xs font-medium transition-all ${difficulty === d ? 'bg-purple-100 text-purple-700 shadow-md' : 'text-gray-600 hover:text-gray-800'}`}>
-              {getDifficultyLabel(d)}
-            </button>
-          ))}
+        <div className="flex items-center gap-2">
+          <span className={`text-sm font-medium ${light ? 'text-gray-700' : 'text-white'}`}>
+            {getDifficultyLabel(difficulty)}
+          </span>
+          <button
+            onClick={onDifficultyChangeRequest}
+            className={`w-8 h-8 rounded-full flex items-center justify-center ${light ? 'bg-gray-100 hover:bg-gray-200' : 'bg-white/20 hover:bg-white/30'}`}
+            title="Сменить сложность"
+          >
+            <Settings size={16} className={light ? 'text-gray-600' : 'text-white'} />
+          </button>
         </div>
         <button onClick={() => setShowHint(true)} className={`w-8 h-8 rounded-full flex items-center justify-center ${light ? 'bg-gray-100 hover:bg-gray-200' : 'bg-white/20 hover:bg-white/30'}`}>
           <HelpCircle size={16} className={light ? 'text-gray-600' : 'text-white'} />
@@ -91,8 +94,8 @@ export default function MemoryGame({ game, onComplete, light }) {
       <div className="flex items-center gap-2 mb-4">
         <span className={`text-xs rounded-full px-3 py-1 ${light ? 'bg-gray-100 text-gray-600' : 'bg-white/10 text-white/60'}`}>Найди все пары</span>
         <div className="flex-1" />
-        <Timer size={14} className="text-gray-500" /><span className={`text-xs ${subTextColor}`}>{timer}с</span>
-        <span className={`text-xs ml-2 ${subTextColor}`}>Ходы: {moves}</span>
+        <Timer size={14} className="text-gray-500" /><span className={`text-xs ${light ? 'text-gray-500' : 'text-white/60'}`}>{timer}с</span>
+        <span className={`text-xs ml-2 ${light ? 'text-gray-500' : 'text-white/60'}`}>Ходы: {moves}</span>
         <Star size={14} className="text-yellow-500 fill-yellow-500" />
         <span className={`text-sm font-bold ${textColor}`}>{matched.length}/{cards.length / 2}</span>
       </div>

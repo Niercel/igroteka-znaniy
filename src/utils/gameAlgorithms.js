@@ -121,8 +121,8 @@ export const getBuildWord = async (gameId, level) => {
 // ==================== БУКВА ПОТЕРЯЛАСЬ (reading-2) ====================
 export const getMissingLetter = async (gameId, level) => {
   const items = await loadGameContent(gameId)
-  const filtered = items.filter(i => i.level === level && i.missingIndex !== undefined)
-  return filtered.length ? filtered[Math.floor(Math.random() * filtered.length)] : { word: 'кот', missingIndex: 1, options: ['о','а','у'] }
+  const filtered = items.filter(i => i.level === level && i.missingIndices !== undefined)
+  return filtered.length ? filtered[Math.floor(Math.random() * filtered.length)] : null
 }
 
 // ==================== СЛОГИ (reading-3) ====================

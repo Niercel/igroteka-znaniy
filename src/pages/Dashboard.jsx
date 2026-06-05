@@ -5,6 +5,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useAuth } from '../context/AuthContext'
+import seedDatabase from '../utils/seedData'
 import {
   Plus, Trash2, Play, LogOut, Home, Sparkles, Baby, Users, TrendingUp
 } from 'lucide-react'
@@ -15,10 +16,11 @@ export default function Dashboard() {
   const [children, setChildren] = useState([])
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState('')
-  const [age, setAge] = useState('')
+  const [birthYear, setBirthYear] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [seeding, setSeeding] = useState(false)
 
   useEffect(() => {
     if (!user) { navigate('/login'); return }
@@ -42,18 +44,32 @@ export default function Dashboard() {
     }
   }
 
+  const handleSeed = async () => {
+    setSeeding(true)
+    try {
+      await seedDatabase()
+      alert('База данных заполнена! Обновите страницу.')
+    } catch (err) {
+      alert('Ошибка: ' + err.message)
+    } finally {
+      setSeeding(false)
+    }
+  }
+
   const handleAddChild = async (e) => {
     e.preventDefault()
     setError('')
     setSuccess('')
-    
-    if (!name.trim() || !age) {
+
+    if (!name.trim() || !birthYear) {
       setError('Заполните все поля')
       return
     }
 
-    if (age < 3 || age > 8) {
-      setError('Возраст от 3 до 8 лет')
+    const year = Number(birthYear)
+    const currentYear = new Date().getFullYear()
+    if (isNaN(year) || year < 2016 || year > currentYear - 3) {
+      setError('Год рождения должен быть между 2016 и ' + (currentYear - 3))
       return
     }
 
@@ -61,16 +77,16 @@ export default function Dashboard() {
       await addDoc(collection(db, 'children'), {
         parentId: user.uid,
         name: name.trim(),
-        age: Number(age),
+        birthYear: year,
         createdAt: new Date().toISOString()
       })
-      
+
       setSuccess(`${name} добавлен!`)
       setName('')
-      setAge('')
+      setBirthYear('')
       setShowForm(false)
       loadChildren()
-      
+
       setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
       setError('Ошибка при добавлении')
@@ -79,7 +95,7 @@ export default function Dashboard() {
 
   const handleDeleteChild = async (childId, childName) => {
     if (!confirm(`Удалить ${childName}?`)) return
-    
+
     try {
       await deleteDoc(doc(db, 'children', childId))
       setChildren(prev => prev.filter(c => c.id !== childId))
@@ -93,13 +109,26 @@ export default function Dashboard() {
     navigate('/')
   }
 
+  // Поддержка старых (age) и новых (birthYear) записей
+  const getAge = (child) => {
+    if (child.birthYear) {
+      return new Date().getFullYear() - child.birthYear
+    }
+    if (child.age) {
+      return child.age
+    }
+    return null
+  }
+
   const getAgeEmoji = (age) => {
+    if (age === null) return '👶'
     if (age <= 4) return '👶'
     if (age <= 6) return '🧒'
     return '👦'
   }
 
   const getAgeWord = (age) => {
+    if (age === null) return 'лет'
     if (age === 1) return 'год'
     if (age >= 2 && age <= 4) return 'года'
     return 'лет'
@@ -113,7 +142,6 @@ export default function Dashboard() {
     )
   }
 
-  // Администратор видит только кнопку перехода в админ-панель
   if (isAdmin) {
     return (
       <div className="min-h-screen relative">
@@ -147,14 +175,14 @@ export default function Dashboard() {
             </p>
           </div>
           <div className="flex gap-3">
-            <button 
+            <button
               onClick={() => navigate('/')}
               className="flex items-center gap-2 text-emerald-600 hover:text-emerald-700 px-4 py-2 rounded-xl bg-white/80 backdrop-blur-sm shadow-md hover:shadow-lg transition-all"
             >
               <Home size={16} />
               На главную
             </button>
-            <button 
+            <button
               onClick={handleLogout}
               className="flex items-center gap-2 text-rose-500 hover:text-rose-600 px-4 py-2 rounded-xl bg-white/80 backdrop-blur-sm shadow-md hover:shadow-lg transition-all"
             >
@@ -163,6 +191,14 @@ export default function Dashboard() {
             </button>
           </div>
         </div>
+
+        <button
+          onClick={handleSeed}
+          disabled={seeding}
+          className="mb-4 bg-yellow-400 hover:bg-yellow-500 text-gray-900 px-6 py-3 rounded-xl font-bold shadow-lg transition-all disabled:opacity-50"
+        >
+          {seeding ? 'Заполняем...' : '🌱 Заполнить базу данных'}
+        </button>
 
         {success && (
           <div className="bg-emerald-100 border border-emerald-200 rounded-2xl p-3 mb-4 text-emerald-700 text-sm flex items-center gap-2 animate-slide-up">
@@ -176,11 +212,11 @@ export default function Dashboard() {
             <div>
               <h2 className="text-2xl font-bold text-gray-800">Мои дети</h2>
               <p className="text-gray-500 text-sm mt-1">
-                {children.length === 0 ? 'Нет добавленных детей' : 
+                {children.length === 0 ? 'Нет добавленных детей' :
                  `${children.length} ${children.length === 1 ? 'ребёнок' : children.length >= 2 && children.length <= 4 ? 'ребёнка' : 'детей'}`}
               </p>
             </div>
-            <button 
+            <button
               onClick={() => setShowForm(!showForm)}
               className="bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-500 hover:to-teal-500 text-white px-5 py-2.5 rounded-full text-sm font-semibold transition-all flex items-center gap-2 shadow-lg hover:shadow-xl"
             >
@@ -195,7 +231,7 @@ export default function Dashboard() {
                 <Baby size={20} className="text-emerald-500" />
                 Новый ребёнок
               </h3>
-              
+
               {error && (
                 <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 mb-4 text-rose-600 text-sm">
                   ⚠️ {error}
@@ -214,20 +250,16 @@ export default function Dashboard() {
                   />
                 </div>
                 <div>
-                  <label className="block text-gray-700 text-sm mb-1.5 font-medium">Возраст</label>
-                  <select
-                    value={age}
-                    onChange={(e) => setAge(e.target.value)}
-                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-800 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all cursor-pointer"
-                  >
-                    <option value="">Выберите возраст</option>
-                    <option value="3">3 года</option>
-                    <option value="4">4 года</option>
-                    <option value="5">5 лет</option>
-                    <option value="6">6 лет</option>
-                    <option value="7">7 лет</option>
-                    <option value="8">8 лет</option>
-                  </select>
+                  <label className="block text-gray-700 text-sm mb-1.5 font-medium">Год рождения</label>
+                  <input
+                    type="number"
+                    value={birthYear}
+                    onChange={(e) => setBirthYear(e.target.value)}
+                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-800 placeholder-gray-400 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all"
+                    placeholder="Например, 2020"
+                    min="2016"
+                    max={new Date().getFullYear() - 3}
+                  />
                 </div>
               </div>
 
@@ -259,7 +291,7 @@ export default function Dashboard() {
               </div>
               <p className="text-gray-500 text-lg mb-2">Нет добавленных детей</p>
               <p className="text-gray-400 text-sm mb-4">Добавьте первого ребёнка, чтобы начать обучение</p>
-              <button 
+              <button
                 onClick={() => setShowForm(true)}
                 className="text-emerald-500 hover:text-emerald-600 text-sm font-medium transition-colors"
               >
@@ -268,47 +300,52 @@ export default function Dashboard() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {children.map((child) => (
-                <div
-                  key={child.id}
-                  className="bg-white border border-gray-100 rounded-2xl p-5 hover:border-emerald-200 hover:shadow-lg transition-all group"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-14 h-14 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-2xl flex items-center justify-center text-3xl shadow-sm">
-                        {getAgeEmoji(child.age)}
+              {children.map((child) => {
+                const age = getAge(child)
+                return (
+                  <div
+                    key={child.id}
+                    className="bg-white border border-gray-100 rounded-2xl p-5 hover:border-emerald-200 hover:shadow-lg transition-all group"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-14 h-14 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-2xl flex items-center justify-center text-3xl shadow-sm">
+                          {getAgeEmoji(age)}
+                        </div>
+                        <div>
+                          <h3 className="text-gray-800 text-lg font-semibold">{child.name}</h3>
+                          <p className="text-gray-400 text-sm">
+                            {age !== null ? `${age} ${getAgeWord(age)}` : 'Возраст не указан'}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="text-gray-800 text-lg font-semibold">{child.name}</h3>
-                        <p className="text-gray-400 text-sm">{child.age} {getAgeWord(child.age)}</p>
-                      </div>
+                      <button
+                        onClick={() => handleDeleteChild(child.id, child.name)}
+                        className="text-gray-300 hover:text-rose-400 transition-colors opacity-0 group-hover:opacity-100 p-1"
+                      >
+                        <Trash2 size={18} />
+                      </button>
                     </div>
-                    <button
-                      onClick={() => handleDeleteChild(child.id, child.name)}
-                      className="text-gray-300 hover:text-rose-400 transition-colors opacity-0 group-hover:opacity-100 p-1"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
 
-                  <div className="flex gap-2 mt-4">
-                    <button
-                      onClick={() => navigate(`/games/${child.id}`)}
-                      className="flex-1 bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-500 hover:to-teal-500 text-white py-3 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
-                    >
-                      <Play size={16} />
-                      Играть
-                    </button>
-                    <button
-                      onClick={() => navigate(`/stats/${child.id}`)}
-                      className="flex-1 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 py-3 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 shadow-sm"
-                    >
-                      <TrendingUp size={16} />
-                      Статистика
-                    </button>
+                    <div className="flex gap-2 mt-4">
+                      <button
+                        onClick={() => navigate(`/games/${child.id}`)}
+                        className="flex-1 bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-500 hover:to-teal-500 text-white py-3 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
+                      >
+                        <Play size={16} />
+                        Играть
+                      </button>
+                      <button
+                        onClick={() => navigate(`/stats/${child.id}`)}
+                        className="flex-1 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 py-3 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 shadow-sm"
+                      >
+                        <TrendingUp size={16} />
+                        Статистика
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
