@@ -129,25 +129,6 @@ export default function Dashboard() {
     )
   }
 
-  if (isAdmin) {
-    return (
-      <div className="min-h-screen relative">
-        <div className="relative z-10 max-w-4xl mx-auto px-4 py-8 text-center">
-          <div className="bg-white/80 backdrop-blur-xl border border-gray-200 rounded-3xl p-8 shadow-xl">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">Вы администратор</h2>
-            <p className="text-gray-500 mb-6">Вам доступно управление сайтом через админ‑панель.</p>
-            <button
-              onClick={() => navigate('/admin')}
-              className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-xl font-bold hover:scale-105 transition-transform shadow-lg"
-            >
-              Перейти в админ‑панель
-            </button>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="min-h-screen relative">
       <div className="relative z-10 max-w-4xl mx-auto px-4 py-8">
