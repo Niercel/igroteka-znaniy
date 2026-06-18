@@ -5,7 +5,6 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useAuth } from '../context/AuthContext'
-import seedDatabase from '../utils/seedData'
 import {
   Plus, Trash2, Play, LogOut, Home, Sparkles, Baby, Users, TrendingUp
 } from 'lucide-react'
@@ -20,7 +19,6 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  const [seeding, setSeeding] = useState(false)
 
   useEffect(() => {
     if (!user) { navigate('/login'); return }
@@ -44,17 +42,6 @@ export default function Dashboard() {
     }
   }
 
-  const handleSeed = async () => {
-    setSeeding(true)
-    try {
-      await seedDatabase()
-      alert('База данных заполнена! Обновите страницу.')
-    } catch (err) {
-      alert('Ошибка: ' + err.message)
-    } finally {
-      setSeeding(false)
-    }
-  }
 
   const handleAddChild = async (e) => {
     e.preventDefault()
@@ -191,14 +178,6 @@ export default function Dashboard() {
             </button>
           </div>
         </div>
-
-        <button
-          onClick={handleSeed}
-          disabled={seeding}
-          className="mb-4 bg-yellow-400 hover:bg-yellow-500 text-gray-900 px-6 py-3 rounded-xl font-bold shadow-lg transition-all disabled:opacity-50"
-        >
-          {seeding ? 'Заполняем...' : '🌱 Заполнить базу данных'}
-        </button>
 
         {success && (
           <div className="bg-emerald-100 border border-emerald-200 rounded-2xl p-3 mb-4 text-emerald-700 text-sm flex items-center gap-2 animate-slide-up">

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Star, HelpCircle, Settings } from 'lucide-react'
-import { DIFFICULTY_LEVELS, getSettings, getDifficultyLabel } from '../../utils/gameSettings'
+import { getSettings, getDifficultyLabel } from '../../utils/gameSettings'
 import { getSentence } from '../../utils/gameAlgorithms'
 import { getRandomMessage } from '../../utils/gameContent'
 import HintModal from '../HintModal'
@@ -20,27 +20,13 @@ export default function SentenceGame({ game, onComplete, difficulty, onDifficult
 
   const settings = getSettings('sentence', difficulty)
   const totalRounds = settings.rounds
-  const contentLevel = { easy: 1, medium: 2, hard: 3 }[difficulty]
+
+  useEffect(() => { setRound(0); setScore(0); setFinished(false) }, [difficulty])
 
   useEffect(() => {
-    setLoading(true)
-    getSentence(game.id, contentLevel).then(data => {
-      setSentenceData(data)
-      setAvailable([...data.words].sort(() => Math.random() - 0.5))
-      setBuilt([])
-      setShowResult(false)
-      setMessage('')
-      setLoading(false)
-    })
-    setRound(0)
-    setScore(0)
-    setFinished(false)
-  }, [difficulty, game.id, contentLevel])
-
-  useEffect(() => {
-    if (!finished && !loading) {
+    if (!finished) {
       setLoading(true)
-      getSentence(game.id, contentLevel).then(data => {
+      getSentence(game.id, difficulty).then(data => {
         setSentenceData(data)
         setAvailable([...data.words].sort(() => Math.random() - 0.5))
         setBuilt([])
@@ -49,7 +35,7 @@ export default function SentenceGame({ game, onComplete, difficulty, onDifficult
         setLoading(false)
       })
     }
-  }, [round])
+  }, [round, difficulty, finished, game.id])
 
   const add = (word, i) => { if (showResult) return; setBuilt([...built, word]); setAvailable(available.filter((_, idx) => idx !== i)) }
   const remove = (i) => { if (showResult) return; setAvailable([...available, built[i]]); setBuilt(built.filter((_, idx) => idx !== i)) }
@@ -58,9 +44,8 @@ export default function SentenceGame({ game, onComplete, difficulty, onDifficult
     const isCorrect = built.join(' ') === sentenceData.words.join(' ')
     setCorrect(isCorrect)
     setShowResult(true)
-    if (isCorrect) { setScore(s => s + 1); setMessage(getRandomMessage(game.correctMessages)) }
-    else setMessage(getRandomMessage(game.incorrectMessages))
-
+    setMessage(getRandomMessage(isCorrect ? game.correctMessages : game.incorrectMessages))
+    if (isCorrect) setScore(s => s + 1)
     setTimeout(() => {
       if (round + 1 < totalRounds) setRound(r => r + 1)
       else { setFinished(true); onComplete(score + (isCorrect ? 1 : 0), totalRounds) }
@@ -76,46 +61,29 @@ export default function SentenceGame({ game, onComplete, difficulty, onDifficult
   return (
     <div>
       <HintModal isOpen={showHint} onClose={() => setShowHint(false)} title={game.title} instructions={game.instructions} />
-
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <span className={`text-sm font-medium ${light ? 'text-gray-700' : 'text-white'}`}>
-            {getDifficultyLabel(difficulty)}
-          </span>
-          <button
-            onClick={onDifficultyChangeRequest}
-            className={`w-8 h-8 rounded-full flex items-center justify-center ${light ? 'bg-gray-100 hover:bg-gray-200' : 'bg-white/20 hover:bg-white/30'}`}
-            title="Сменить сложность"
-          >
-            <Settings size={16} className={light ? 'text-gray-600' : 'text-white'} />
-          </button>
+          <span className={`text-sm font-medium ${light ? 'text-gray-700' : 'text-white'}`}>{getDifficultyLabel(difficulty)}</span>
+          <button onClick={onDifficultyChangeRequest} className={`w-8 h-8 rounded-full flex items-center justify-center ${light ? 'bg-gray-100 hover:bg-gray-200' : 'bg-white/20 hover:bg-white/30'}`}><Settings size={16} className={light ? 'text-gray-600' : 'text-white'} /></button>
         </div>
-        <button onClick={() => setShowHint(true)} className={`w-8 h-8 rounded-full flex items-center justify-center ${light ? 'bg-gray-100 hover:bg-gray-200' : 'bg-white/20 hover:bg-white/30'}`}>
-          <HelpCircle size={16} className={light ? 'text-gray-600' : 'text-white'} />
-        </button>
+        <button onClick={() => setShowHint(true)} className={`w-8 h-8 rounded-full flex items-center justify-center ${light ? 'bg-gray-100 hover:bg-gray-200' : 'bg-white/20 hover:bg-white/30'}`}><HelpCircle size={16} className={light ? 'text-gray-600' : 'text-white'} /></button>
       </div>
-
       <div className="flex items-center gap-2 mb-4">
-        <span className={`text-xs rounded-full px-3 py-1 ${light ? 'bg-gray-100 text-gray-600' : 'bg-white/10 text-white/60'}`}>
-          Раунд {round + 1}/{totalRounds}
-        </span>
+        <span className={`text-xs rounded-full px-3 py-1 ${light ? 'bg-gray-100 text-gray-600' : 'bg-white/10 text-white/60'}`}>Раунд {round + 1}/{totalRounds}</span>
         <div className="flex-1" />
         <Star size={14} className="text-yellow-500 fill-yellow-500" />
         <span className={`text-sm font-bold ${textColor}`}>{score}</span>
       </div>
-
       <div className={`${bgCard} backdrop-blur-xl border rounded-3xl p-6`}>
         <div className="flex flex-wrap justify-center gap-2 min-h-[60px] bg-gray-100 rounded-2xl p-4 mb-4 border-2 border-dashed border-gray-300">
           {built.length === 0 && !showResult && <span className="text-gray-400">Составьте предложение</span>}
           {built.map((word, i) => (
-            <button key={i} onClick={() => remove(i)} disabled={showResult}
-              className="bg-gradient-to-br from-purple-400 to-pink-400 text-white text-sm font-bold px-3 py-1.5 rounded-xl transform active:scale-90 transition-transform shadow-md">{word}</button>
+            <button key={i} onClick={() => remove(i)} disabled={showResult} className="bg-gradient-to-br from-purple-400 to-pink-400 text-white text-sm font-bold px-3 py-1.5 rounded-xl transform active:scale-90 transition-transform shadow-md">{word}</button>
           ))}
         </div>
         <div className="flex flex-wrap justify-center gap-2">
           {available.map((word, i) => (
-            <button key={i} onClick={() => add(word, i)} disabled={showResult}
-              className="bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-bold px-3 py-1.5 rounded-xl transform active:scale-90 transition-transform shadow-md">{word}</button>
+            <button key={i} onClick={() => add(word, i)} disabled={showResult} className="bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-bold px-3 py-1.5 rounded-xl transform active:scale-90 transition-transform shadow-md">{word}</button>
           ))}
         </div>
         {!showResult && built.length === sentenceData?.words.length && (

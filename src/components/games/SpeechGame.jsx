@@ -20,27 +20,20 @@ export default function SpeechGame({ game, onComplete, difficulty, onDifficultyC
   const recognitionRef = useRef(null)
 
   const settings = getSettings('speech', difficulty)
-  const totalRounds = settings.wordsCount
-  const contentLevel = { easy: 1, medium: 2, hard: 3 }[difficulty]
+  const totalRounds = settings.wordsCount || settings.rounds
 
+  // Сброс при смене сложности
   useEffect(() => {
-    setLoading(true)
-    getSpeechWord(game.id, contentLevel).then(w => {
-      setWordData(w)
-      setTranscript('')
-      setShowResult(false)
-      setMessage('')
-      setLoading(false)
-    })
     setRound(0)
     setScore(0)
     setFinished(false)
-  }, [difficulty, game.id, contentLevel])
+  }, [difficulty])
 
+  // Загрузка слова для текущего раунда
   useEffect(() => {
-    if (!finished && !loading) {
+    if (!finished) {
       setLoading(true)
-      getSpeechWord(game.id, contentLevel).then(w => {
+      getSpeechWord(game.id, difficulty).then(w => {
         setWordData(w)
         setTranscript('')
         setShowResult(false)
@@ -48,7 +41,7 @@ export default function SpeechGame({ game, onComplete, difficulty, onDifficultyC
         setLoading(false)
       })
     }
-  }, [round])
+  }, [round, difficulty, finished, game.id])
 
   const speak = () => {
     if (!wordData?.word) return
@@ -59,7 +52,11 @@ export default function SpeechGame({ game, onComplete, difficulty, onDifficultyC
 
   const startListening = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-    if (!SpeechRecognition) { setMessage('Микрофон не поддерживается'); return }
+    if (!SpeechRecognition) {
+      setMessage('Ваш браузер не поддерживает распознавание речи. Попробуйте Chrome или Edge.')
+      setShowResult(true)
+      return
+    }
     recognitionRef.current = new SpeechRecognition()
     recognitionRef.current.lang = 'ru-RU'
     recognitionRef.current.onstart = () => setListening(true)
@@ -80,13 +77,9 @@ export default function SpeechGame({ game, onComplete, difficulty, onDifficultyC
     recognitionRef.current.start()
   }
 
-  const nextRound = () => {
-    if (round + 1 < totalRounds) {
-      setRound(r => r + 1)
-    } else {
-      setFinished(true)
-      onComplete(score, totalRounds)
-    }
+  const next = () => {
+    if (round + 1 < totalRounds) setRound(r => r + 1)
+    else { setFinished(true); onComplete(score, totalRounds) }
   }
 
   if (finished) return null
@@ -132,7 +125,7 @@ export default function SpeechGame({ game, onComplete, difficulty, onDifficultyC
           <Volume2 size={28} />
         </button>
         <button onClick={startListening} disabled={listening || showResult}
-          className={`w-28 h-28 rounded-full flex items-center justify-center mx-auto mb-6 transition-all ${listening ? 'bg-red-400 animate-pulse' : 'bg-gradient-to-r from-purple-400 to-pink-400 hover:scale-110'}`}>
+          className={`w-28 h-28 rounded-full flex items-center justify-center mx-auto mb-6 transition-all ${listening ? 'bg-red-400 animate-pulse' : 'bg-gradient-to-br from-purple-400 to-pink-400 hover:scale-110'}`}>
           {listening ? <MicOff size={48} className="text-white" /> : <Mic size={48} className="text-white" />}
         </button>
         <p className={`text-sm mb-4 ${light ? 'text-gray-500' : 'text-white/40'}`}>{listening ? '🎤 Говорите...' : 'Нажмите на микрофон'}</p>
@@ -150,9 +143,11 @@ export default function SpeechGame({ game, onComplete, difficulty, onDifficultyC
         {showResult && (
           <div className="animate-slide-up">
             <div className={`text-xl font-bold mb-2 ${accuracy >= settings.accuracyRequired ? 'text-green-500' : 'text-red-500'}`}>{message}</div>
-            <button onClick={nextRound} className="mt-4 bg-gradient-to-r from-purple-400 to-pink-400 text-white px-8 py-3 rounded-full font-bold hover:scale-105 transition-transform">
-              Далее →
-            </button>
+            {message !== 'Ваш браузер не поддерживает распознавание речи. Попробуйте Chrome или Edge.' && (
+              <button onClick={next} className="mt-4 bg-gradient-to-r from-purple-400 to-pink-400 text-white px-8 py-3 rounded-full font-bold hover:scale-105 transition-transform">
+                Далее →
+              </button>
+            )}
           </div>
         )}
       </div>

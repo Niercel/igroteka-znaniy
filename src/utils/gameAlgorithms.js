@@ -1,6 +1,14 @@
 import { collection, getDocs } from 'firebase/firestore'
 import { db } from '../firebase/config'
 
+const toDifficulty = (item) => {
+  if (item.difficulty) return item.difficulty
+  if (item.level === 1) return 'easy'
+  if (item.level === 2) return 'medium'
+  if (item.level === 3) return 'hard'
+  return null
+}
+
 // ==================== МАТЕМАТИКА ====================
 export const generateMathQuestion = (range = 20, operatorsList = ['+', '-']) => {
   const operator = operatorsList[Math.floor(Math.random() * operatorsList.length)]
@@ -50,10 +58,10 @@ export const loadGameContent = async (gameId) => {
   return snap.docs.map(d => ({ id: d.id, ...d.data() }))
 }
 
-// ==================== ЛОГИКА (Что лишнее?) ====================
-export const generateLogicQuestion = async (gameId) => {
+// ==================== ЛОГИКА – ЧТО ЛИШНЕЕ? ====================
+export const generateLogicQuestion = async (gameId, difficulty) => {
   const items = await loadGameContent(gameId)
-  const categories = items.filter(i => i.categoryName)
+  const categories = items.filter(i => toDifficulty(i) === difficulty && i.categoryName)
   if (categories.length < 2) {
     return { text: 'Найди лишнее!', hint: 'Недостаточно категорий', items: [], correct: 0, explanation: '' }
   }
@@ -68,23 +76,22 @@ export const generateLogicQuestion = async (gameId) => {
     hint: `Все предметы относятся к категории «${main.categoryName}», кроме одного`,
     items: allItems,
     correct: allItems.indexOf(odd),
-    category: main.categoryName,
-    oddItem: odd,
     explanation: `«${odd}» лишний, потому что он из категории «${other.categoryName}», а остальные — из «${main.categoryName}».`
   }
 }
 
-// ==================== ЧТЕНИЕ СЛОВА (speech-1) ====================
-export const getSpeechWord = async (gameId, level) => {
+// ==================== ЧИТАЛОЧКА ====================
+export const getSpeechWord = async (gameId, difficulty, category = null) => {
   const items = await loadGameContent(gameId)
-  const words = items.filter(w => w.level === level && w.word)
-  return words.length ? words[Math.floor(Math.random() * words.length)] : { word: 'кот', image: '🐱' }
+  let filtered = items.filter(w => toDifficulty(w) === difficulty && w.word)
+  if (category) filtered = filtered.filter(w => w.category === category)
+  return filtered.length ? filtered[Math.floor(Math.random() * filtered.length)] : { word: 'кот', image: '🐱' }
 }
 
-// ==================== ПРЕДЛОЖЕНИЕ ДЛЯ ЧТЕНИЯ (speech-2) ====================
-export const getSentenceForReading = async (gameId, level) => {
+// ==================== ПРЕДЛОЖЕНИЕ ДЛЯ ЧТЕНИЯ ====================
+export const getSentenceForReading = async (gameId, difficulty) => {
   const items = await loadGameContent(gameId)
-  const filtered = items.filter(s => s.level === level && s.text)
+  const filtered = items.filter(s => toDifficulty(s) === difficulty && s.text)
   return filtered.length ? filtered[Math.floor(Math.random() * filtered.length)] : { text: 'Мама мыла раму', image: '🧼' }
 }
 
@@ -104,30 +111,33 @@ export const checkSentenceAccuracy = (target, spoken, startTime) => {
   return { accuracy, speed, wordsMatched, totalWords }
 }
 
-// ==================== СОСТАВЬ ПРЕДЛОЖЕНИЕ (speech-3) ====================
-export const getSentence = async (gameId, level) => {
+// ==================== СОСТАВЬ ПРЕДЛОЖЕНИЕ ====================
+export const getSentence = async (gameId, difficulty) => {
   const items = await loadGameContent(gameId)
-  const filtered = items.filter(i => i.level === level && i.words)
+  const filtered = items.filter(i => toDifficulty(i) === difficulty && i.words)
   return filtered.length ? filtered[Math.floor(Math.random() * filtered.length)] : { words: ['Мама', 'моет', 'раму'] }
 }
 
-// ==================== СОБЕРИ СЛОВО (reading-1) ====================
-export const getBuildWord = async (gameId, level) => {
+// ==================== СОБЕРИ СЛОВО ====================
+export const getBuildWord = async (gameId, difficulty, category = null) => {
   const items = await loadGameContent(gameId)
-  const filtered = items.filter(w => w.level === level && w.word)
+  let filtered = items.filter(w => toDifficulty(w) === difficulty && w.word)
+  if (category) filtered = filtered.filter(w => w.category === category)
   return filtered.length ? filtered[Math.floor(Math.random() * filtered.length)] : { word: 'КОТ', image: '🐱' }
 }
 
-// ==================== БУКВА ПОТЕРЯЛАСЬ (reading-2) ====================
-export const getMissingLetter = async (gameId, level) => {
+// ==================== БУКВА ПОТЕРЯЛАСЬ ====================
+export const getMissingLetter = async (gameId, difficulty, category = null) => {
   const items = await loadGameContent(gameId)
-  const filtered = items.filter(i => i.level === level && i.missingIndices !== undefined)
+  let filtered = items.filter(i => toDifficulty(i) === difficulty && i.missingIndices !== undefined)
+  if (category) filtered = filtered.filter(i => i.category === category)
   return filtered.length ? filtered[Math.floor(Math.random() * filtered.length)] : null
 }
 
-// ==================== СЛОГИ (reading-3) ====================
-export const getSyllables = async (gameId, level) => {
+// ==================== ВЫБЕРИ СЛОВО ====================
+export const getChooseWord = async (gameId, difficulty, category = null) => {
   const items = await loadGameContent(gameId)
-  const filtered = items.filter(i => i.level === level && i.syllables)
-  return filtered.length ? filtered[Math.floor(Math.random() * filtered.length)] : { syllables: ['ко','т'], word: 'кот' }
+  let filtered = items.filter(i => toDifficulty(i) === difficulty && i.word && i.options)
+  if (category) filtered = filtered.filter(i => i.category === category)
+  return filtered.length ? filtered[Math.floor(Math.random() * filtered.length)] : null
 }

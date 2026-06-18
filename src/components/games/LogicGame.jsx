@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Star, Lightbulb, HelpCircle, Settings } from 'lucide-react'
+import { getSettings, getDifficultyLabel } from '../../utils/gameSettings'
 import { generateLogicQuestion } from '../../utils/gameAlgorithms'
 import { getRandomMessage } from '../../utils/gameContent'
-import { getSettings, getDifficultyLabel } from '../../utils/gameSettings'
 import HintModal from '../HintModal'
 
 export default function LogicGame({ game, onComplete, difficulty, onDifficultyChangeRequest, light }) {
@@ -20,23 +20,15 @@ export default function LogicGame({ game, onComplete, difficulty, onDifficultyCh
   const totalRounds = settings.rounds
 
   useEffect(() => {
-    setLoading(true)
-    generateLogicQuestion(game.id).then(q => {
-      setQuestion(q)
-      setSelected(null)
-      setShowResult(false)
-      setMessage('')
-      setLoading(false)
-    })
     setRound(0)
     setScore(0)
     setFinished(false)
-  }, [difficulty, game.id])
+  }, [difficulty])
 
   useEffect(() => {
-    if (!finished && !loading) {
+    if (!finished) {
       setLoading(true)
-      generateLogicQuestion(game.id).then(q => {
+      generateLogicQuestion(game.id, difficulty).then(q => {
         setQuestion(q)
         setSelected(null)
         setShowResult(false)
@@ -44,26 +36,18 @@ export default function LogicGame({ game, onComplete, difficulty, onDifficultyCh
         setLoading(false)
       })
     }
-  }, [round])
+  }, [round, difficulty, finished, game.id])
 
   const handleAnswer = (index) => {
     if (showResult || finished) return
     setSelected(index)
     setShowResult(true)
     const correct = index === question.correct
-    if (correct) {
-      setScore(s => s + 1)
-      setMessage(getRandomMessage(game.correctMessages))
-    } else {
-      setMessage(getRandomMessage(game.incorrectMessages))
-    }
+    if (correct) { setScore(s => s + 1); setMessage(getRandomMessage(game.correctMessages)) }
+    else setMessage(getRandomMessage(game.incorrectMessages))
     setTimeout(() => {
-      if (round + 1 < totalRounds) {
-        setRound(r => r + 1)
-      } else {
-        setFinished(true)
-        onComplete(score + (correct ? 1 : 0), totalRounds)
-      }
+      if (round + 1 < totalRounds) setRound(r => r + 1)
+      else { setFinished(true); onComplete(score + (correct ? 1 : 0), totalRounds) }
     }, 2000)
   }
 
@@ -80,26 +64,14 @@ export default function LogicGame({ game, onComplete, difficulty, onDifficultyCh
 
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <span className={`text-sm font-medium ${light ? 'text-gray-700' : 'text-white'}`}>
-            {getDifficultyLabel(difficulty)}
-          </span>
-          <button
-            onClick={onDifficultyChangeRequest}
-            className={`w-8 h-8 rounded-full flex items-center justify-center ${light ? 'bg-gray-100 hover:bg-gray-200' : 'bg-white/20 hover:bg-white/30'}`}
-            title="Сменить сложность"
-          >
-            <Settings size={16} className={light ? 'text-gray-600' : 'text-white'} />
-          </button>
+          <span className={`text-sm font-medium ${light ? 'text-gray-700' : 'text-white'}`}>{getDifficultyLabel(difficulty)}</span>
+          <button onClick={onDifficultyChangeRequest} className={`w-8 h-8 rounded-full flex items-center justify-center ${light ? 'bg-gray-100 hover:bg-gray-200' : 'bg-white/20 hover:bg-white/30'}`}><Settings size={16} className={light ? 'text-gray-600' : 'text-white'} /></button>
         </div>
-        <button onClick={() => setShowHint(true)} className={`w-8 h-8 rounded-full flex items-center justify-center ${light ? 'bg-gray-100 hover:bg-gray-200' : 'bg-white/20 hover:bg-white/30'}`}>
-          <HelpCircle size={16} className={light ? 'text-gray-600' : 'text-white'} />
-        </button>
+        <button onClick={() => setShowHint(true)} className={`w-8 h-8 rounded-full flex items-center justify-center ${light ? 'bg-gray-100 hover:bg-gray-200' : 'bg-white/20 hover:bg-white/30'}`}><HelpCircle size={16} className={light ? 'text-gray-600' : 'text-white'} /></button>
       </div>
 
       <div className="flex items-center gap-2 mb-4">
-        <span className={`text-xs rounded-full px-3 py-1 ${light ? 'bg-gray-100 text-gray-600' : 'bg-white/10 text-white/60'}`}>
-          Раунд {round + 1}/{totalRounds}
-        </span>
+        <span className={`text-xs rounded-full px-3 py-1 ${light ? 'bg-gray-100 text-gray-600' : 'bg-white/10 text-white/60'}`}>Раунд {round + 1}/{totalRounds}</span>
         <div className="flex-1" />
         <Star size={14} className="text-yellow-500 fill-yellow-500" />
         <span className={`text-sm font-bold ${textColor}`}>{score}</span>
@@ -113,10 +85,7 @@ export default function LogicGame({ game, onComplete, difficulty, onDifficultyCh
           {question.items.map((item, i) => (
             <button key={i} onClick={() => handleAnswer(i)} disabled={showResult}
               className={`text-5xl w-20 h-20 rounded-2xl transition-all active:scale-90 shadow-lg ${
-                showResult
-                  ? i === question.correct ? 'bg-green-400/80 border-2 border-green-300 scale-110 animate-pop'
-                  : i === selected ? 'bg-red-400/80 border-2 border-red-300 animate-shake'
-                  : 'bg-gray-100 text-gray-400'
+                showResult ? (i === question.correct ? 'bg-green-400/80 border-2 border-green-300 scale-110 animate-pop' : i === selected ? 'bg-red-400/80 border-2 border-red-300 animate-shake' : 'bg-gray-100 text-gray-400')
                 : 'bg-gray-100 border-2 border-gray-300 text-gray-800 hover:bg-gray-200 hover:scale-105'
               }`}>{item}</button>
           ))}
