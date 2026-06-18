@@ -139,7 +139,6 @@ export default function Games() {
             </div>
           </div>
 
-          {/* НОВАЯ КНОПКА-ПЕРЕКЛЮЧАТЕЛЬ */}
           <button
             onClick={toggleShowAllAges}
             className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 shadow-md ${
