@@ -28,65 +28,66 @@ const TABS = [
   { id: 'stats', label: 'Статистика', icon: BarChart3 },
 ]
 
+// ===================== ОБНОВЛЁННЫЙ CONTENT_TYPES (без order) =====================
 const CONTENT_TYPES = {
   word: {
-    label: 'Слово (Читалочка)', 
-    fields: ['word', 'image', 'difficulty', 'order'],
-    placeholders: { word: 'кот', image: '🐱', difficulty: 'easy', order: '1' },
+    label: 'Слово (Читалочка)',
+    fields: ['word', 'image', 'difficulty'],
+    placeholders: { word: 'кот', image: '🐱', difficulty: 'easy' },
     required: ['word', 'difficulty'],
   },
   buildWord: {
-    label: 'Слово для сборки', 
-    fields: ['word', 'image', 'difficulty', 'order'],
-    placeholders: { word: 'КОТ', image: '🐱', difficulty: 'easy', order: '1' },
+    label: 'Слово для сборки',
+    fields: ['word', 'image', 'difficulty'],
+    placeholders: { word: 'КОТ', image: '🐱', difficulty: 'easy' },
     required: ['word', 'difficulty'],
   },
   sentence: {
-    label: 'Предложение (Чтение)', 
-    fields: ['text', 'image', 'difficulty', 'order'],
-    placeholders: { text: 'Мама мыла раму', image: '🧼', difficulty: 'easy', order: '1' },
+    label: 'Предложение (Чтение)',
+    fields: ['text', 'image', 'difficulty'],
+    placeholders: { text: 'Мама мыла раму', image: '🧼', difficulty: 'easy' },
     required: ['text', 'difficulty'],
   },
   category: {
-    label: 'Категория предметов', 
-    fields: ['categoryName', 'emojis', 'difficulty', 'order'],
-    placeholders: { categoryName: 'Фрукты', emojis: '🍎,🍊,🍋', difficulty: 'easy', order: '1' },
+    label: 'Категория предметов',
+    fields: ['categoryName', 'emojis', 'difficulty'],
+    placeholders: { categoryName: 'Фрукты', emojis: '🍎,🍊,🍋', difficulty: 'easy' },
     required: ['categoryName', 'emojis', 'difficulty'],
   },
   matchingPair: {
-    label: 'Пара для сопоставления', 
-    fields: ['pair', 'connection', 'difficulty', 'order'],
-    placeholders: { pair: '🍎,🍊', connection: 'фрукты', difficulty: 'easy', order: '1' },
+    label: 'Пара для сопоставления',
+    fields: ['pair', 'connection', 'difficulty'],
+    placeholders: { pair: '🍎,🍊', connection: 'фрукты', difficulty: 'easy' },
     required: ['pair', 'connection', 'difficulty'],
   },
   missingLetter: {
-    label: 'Пропущенная буква', 
-    fields: ['word', 'missingIndex', 'options', 'difficulty', 'order'],
-    placeholders: { word: 'кот', missingIndex: '1', options: 'о,а,у', difficulty: 'easy', order: '1' },
+    label: 'Пропущенная буква',
+    fields: ['word', 'missingIndex', 'options', 'difficulty'],
+    placeholders: { word: 'кот', missingIndex: '1', options: 'о,а,у', difficulty: 'easy' },
     required: ['word', 'missingIndex', 'options', 'difficulty'],
   },
   syllables: {
-    label: 'Слоги', 
-    fields: ['syllables', 'word', 'difficulty', 'order'],
-    placeholders: { syllables: 'ко,т', word: 'кот', difficulty: 'easy', order: '1' },
+    label: 'Слоги',
+    fields: ['syllables', 'word', 'difficulty'],
+    placeholders: { syllables: 'ко,т', word: 'кот', difficulty: 'easy' },
     required: ['syllables', 'word', 'difficulty'],
   },
   chooseWord: {
-    label: 'Выбор слова', 
-    fields: ['image', 'word', 'options', 'difficulty', 'order'],
-    placeholders: { image: '🐱', word: 'КОТ', options: 'КОТ,КИТ,РОТ,ДОМ', difficulty: 'easy', order: '1' },
+    label: 'Выбор слова',
+    fields: ['image', 'word', 'options', 'difficulty'],
+    placeholders: { image: '🐱', word: 'КОТ', options: 'КОТ,КИТ,РОТ,ДОМ', difficulty: 'easy' },
     required: ['image', 'word', 'options', 'difficulty'],
   },
   describeImage: {
-    label: 'Картинка для описания', 
-    fields: ['image', 'expected', 'difficulty', 'order'],
-    placeholders: { image: '🐱', expected: 'кот', difficulty: 'easy', order: '1' },
+    label: 'Картинка для описания',
+    fields: ['image', 'expected', 'difficulty'],
+    placeholders: { image: '🐱', expected: 'кот', difficulty: 'easy' },
     required: ['image', 'expected', 'difficulty'],
   },
   sentenceWords: {
-    label: 'Предложение (Составь)', 
-    fields: ['words', 'difficulty', 'order'],
-    placeholders: { words: 'Мама,моет,раму', difficulty: 'easy', order: '1' },
+    label: 'Предложение (Составь)',
+    fields: ['words', 'difficulty'],
+    placeholders: { words: 'Мама,моет,раму', difficulty: 'easy' },
     required: ['words', 'difficulty'],
   },
 }
@@ -121,6 +122,11 @@ export default function Admin() {
   const [selectedGame, setSelectedGame] = useState(null)
   const [gamesList, setGamesList] = useState([])
   const [contentType, setContentType] = useState(null)
+  const [maxOrder, setMaxOrder] = useState(0)
+
+  // Состояния для сортировки
+  const [sortField, setSortField] = useState(null)
+  const [sortDirection, setSortDirection] = useState('asc')
 
   useEffect(() => {
     if (!authLoading && !isAdmin) {
@@ -167,10 +173,15 @@ export default function Admin() {
           break
         case 'content':
           if (selectedGameId) {
-            snap = await getDocs(collection(db, 'games', selectedGameId, 'content'))
-            setData(snap.docs.map(d => ({ id: d.id, ...d.data(), _gameId: selectedGameId })))
+            const snap = await getDocs(collection(db, 'games', selectedGameId, 'content'))
+            const items = snap.docs.map(d => ({ id: d.id, ...d.data(), _gameId: selectedGameId }))
+            setData(items)
+            const orders = items.map(item => Number(item.order) || 0)
+            const max = orders.length ? Math.max(...orders) : 0
+            setMaxOrder(max)
           } else {
             setData([])
+            setMaxOrder(0)
           }
           setLoading(false)
           return
@@ -206,6 +217,12 @@ export default function Admin() {
         await deleteDoc(doc(db, activeTab, id))
       }
       setData(prev => prev.filter(item => item.id !== id))
+      // После удаления пересчитываем maxOrder
+      if (activeTab === 'content') {
+        const remaining = data.filter(item => item.id !== id)
+        const orders = remaining.map(item => Number(item.order) || 0)
+        setMaxOrder(orders.length ? Math.max(...orders) : 0)
+      }
     } catch (err) { alert('Ошибка: ' + err.message) }
   }
 
@@ -218,7 +235,10 @@ export default function Admin() {
 
   const handleAdd = () => {
     setEditingItem(null)
-    setFormData({ _gameId: selectedGameId })
+    setFormData({
+      _gameId: selectedGameId,
+      order: maxOrder + 1,
+    })
     setShowForm(true)
   }
 
@@ -228,8 +248,48 @@ export default function Admin() {
     setSelectedGame(game)
     setContentType(getContentType(game?.type))
     setData([])
+    setMaxOrder(0)
   }
 
+  // ===================== СОРТИРОВКА =====================
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDirection('asc')
+    }
+  }
+
+  const sortedData = [...data]
+  if (sortField) {
+    sortedData.sort((a, b) => {
+      let valA = a[sortField]
+      let valB = b[sortField]
+
+      // Спецобработка для difficulty
+      if (sortField === 'difficulty') {
+        const order = { easy: 0, medium: 1, hard: 2 }
+        valA = order[valA] ?? -1
+        valB = order[valB] ?? -1
+      }
+
+      // Числа
+      if (typeof valA === 'number' && typeof valB === 'number') {
+        return sortDirection === 'asc' ? valA - valB : valB - valA
+      }
+
+      // Строки
+      if (typeof valA === 'string') valA = valA.toLowerCase()
+      if (typeof valB === 'string') valB = valB.toLowerCase()
+
+      if (valA < valB) return sortDirection === 'asc' ? -1 : 1
+      if (valA > valB) return sortDirection === 'asc' ? 1 : -1
+      return 0
+    })
+  }
+
+  // ===================== СОХРАНЕНИЕ =====================
   const handleSave = async (e) => {
     e.preventDefault()
     try {
@@ -246,18 +306,23 @@ export default function Admin() {
         if (key === 'pair' && typeof saveData[key] === 'string') {
           saveData[key] = saveData[key].split(',').map(s => s.trim()).filter(Boolean)
         }
-        if (['level', 'order', 'missingIndex'].includes(key)) {
+        if (['order', 'missingIndex'].includes(key)) {
           saveData[key] = Number(saveData[key])
         }
       }
-      
+
+      // Если новый элемент, добавляем order
+      if (!editingItem) {
+        saveData.order = maxOrder + 1
+      }
+
       if (editingItem) {
         await setDoc(doc(db, collectionName, editingItem), saveData, { merge: true })
       } else {
         await addDoc(collection(db, collectionName), saveData)
       }
       setShowForm(false)
-      loadData()
+      loadData() // перезагружаем данные для обновления maxOrder
     } catch (err) { alert('Ошибка сохранения: ' + err.message) }
   }
 
@@ -294,7 +359,7 @@ export default function Admin() {
           {TABS.map(tab => (
             <button
               key={tab.id}
-              onClick={() => { setActiveTab(tab.id); setData([]) }}
+              onClick={() => { setActiveTab(tab.id); setData([]); setSortField(null) }}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all ${
                 activeTab === tab.id
                   ? 'bg-purple-500 text-white shadow-lg'
@@ -375,26 +440,63 @@ export default function Admin() {
               <thead>
                 <tr className="border-b border-gray-200">
                   {activeTab === 'games' && (
-                    <><th className="text-left py-2">Название</th><th className="text-left py-2">Тип</th><th className="text-left py-2">Категория</th><th className="py-2">Действия</th></>
+                    <>
+                      <th className="text-left py-2 cursor-pointer hover:text-purple-600 transition-colors" onClick={() => handleSort('title')}>
+                        Название {sortField === 'title' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th className="text-left py-2 cursor-pointer hover:text-purple-600 transition-colors" onClick={() => handleSort('type')}>
+                        Тип {sortField === 'type' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th className="text-left py-2 cursor-pointer hover:text-purple-600 transition-colors" onClick={() => handleSort('categoryId')}>
+                        Категория {sortField === 'categoryId' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th className="py-2">Действия</th>
+                    </>
                   )}
                   {activeTab === 'categories' && (
-                    <><th className="text-left py-2">Название</th><th className="text-left py-2">Иконка</th><th className="text-left py-2">Цвет</th><th className="py-2">Действия</th></>
+                    <>
+                      <th className="text-left py-2 cursor-pointer hover:text-purple-600 transition-colors" onClick={() => handleSort('name')}>
+                        Название {sortField === 'name' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th className="text-left py-2 cursor-pointer hover:text-purple-600 transition-colors" onClick={() => handleSort('icon')}>
+                        Иконка {sortField === 'icon' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th className="text-left py-2 cursor-pointer hover:text-purple-600 transition-colors" onClick={() => handleSort('color')}>
+                        Цвет {sortField === 'color' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th className="py-2">Действия</th>
+                    </>
                   )}
                   {activeTab === 'content' && (
                     <>
                       {contentType && CONTENT_TYPES[contentType].fields.map(field => (
-                        <th key={field} className="text-left py-2 capitalize">{field}</th>
+                        <th
+                          key={field}
+                          className="text-left py-2 capitalize cursor-pointer hover:text-purple-600 transition-colors"
+                          onClick={() => handleSort(field)}
+                        >
+                          {field}
+                          {sortField === field && (sortDirection === 'asc' ? ' ↑' : ' ↓')}
+                        </th>
                       ))}
                       <th className="py-2">Действия</th>
                     </>
                   )}
                   {activeTab === 'users' && (
-                    <><th className="text-left py-2">Email</th><th className="text-left py-2">Роль</th><th className="py-2">Действия</th></>
+                    <>
+                      <th className="text-left py-2 cursor-pointer hover:text-purple-600 transition-colors" onClick={() => handleSort('email')}>
+                        Email {sortField === 'email' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th className="text-left py-2 cursor-pointer hover:text-purple-600 transition-colors" onClick={() => handleSort('role')}>
+                        Роль {sortField === 'role' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th className="py-2">Действия</th>
+                    </>
                   )}
                 </tr>
               </thead>
               <tbody>
-                {data.map(item => (
+                {sortedData.map(item => (
                   <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
                     {activeTab === 'games' && (
                       <>
@@ -437,7 +539,7 @@ export default function Admin() {
                     </td>
                   </tr>
                 ))}
-                {data.length === 0 && (
+                {sortedData.length === 0 && (
                   <tr>
                     <td colSpan={activeTab === 'content' ? (contentType ? CONTENT_TYPES[contentType].fields.length + 1 : 2) : 4} className="text-center py-4 text-gray-400">
                       Нет данных
@@ -473,15 +575,29 @@ export default function Admin() {
                        field === 'pair' ? 'Пара (через запятую)' :
                        field === 'missingIndex' ? 'Индекс пропуска (0-..)' :
                        field === 'categoryName' ? 'Название категории' :
-                       field === 'expected' ? 'Ожидаемое слово' : field}
+                       field === 'expected' ? 'Ожидаемое слово' :
+                       field === 'difficulty' ? 'Сложность (easy/medium/hard)' :
+                       field}
                     </label>
-                    <input
-                      className="w-full border border-gray-200 rounded-xl px-4 py-2 text-gray-800 outline-none focus:border-purple-400 transition-all"
-                      placeholder={CONTENT_TYPES[contentType].placeholders[field] || ''}
-                      value={formData[field] ?? ''}
-                      onChange={e => setFormData({ ...formData, [field]: e.target.value })}
-                      required={CONTENT_TYPES[contentType].required?.includes(field)}
-                    />
+                    {field === 'difficulty' ? (
+                      <select
+                        className="w-full border border-gray-200 rounded-xl px-4 py-2 text-gray-800 outline-none focus:border-purple-400 transition-all"
+                        value={formData[field] || 'easy'}
+                        onChange={e => setFormData({ ...formData, [field]: e.target.value })}
+                      >
+                        <option value="easy">Лёгкий</option>
+                        <option value="medium">Средний</option>
+                        <option value="hard">Сложный</option>
+                      </select>
+                    ) : (
+                      <input
+                        className="w-full border border-gray-200 rounded-xl px-4 py-2 text-gray-800 outline-none focus:border-purple-400 transition-all"
+                        placeholder={CONTENT_TYPES[contentType].placeholders[field] || ''}
+                        value={formData[field] ?? ''}
+                        onChange={e => setFormData({ ...formData, [field]: e.target.value })}
+                        required={CONTENT_TYPES[contentType].required?.includes(field)}
+                      />
+                    )}
                   </div>
                 ))
               ) : activeTab === 'games' ? (

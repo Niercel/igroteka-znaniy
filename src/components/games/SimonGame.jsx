@@ -14,9 +14,11 @@ export default function SimonGame({ game, onComplete, difficulty, onDifficultyCh
   const [activeIndex, setActiveIndex] = useState(null)
   const [pressedIndex, setPressedIndex] = useState(null)
   const [message, setMessage] = useState('')
+  const [messageType, setMessageType] = useState(null)
   const [score, setScore] = useState(0)
   const [finished, setFinished] = useState(false)
   const [showHint, setShowHint] = useState(false)
+  const [processing, setProcessing] = useState(false)
 
   const settings = getSettings('simon', difficulty)
   const totalRounds = settings.rounds
@@ -34,6 +36,9 @@ export default function SimonGame({ game, onComplete, difficulty, onDifficultyCh
     setRound(0)
     setScore(0)
     setFinished(false)
+    setProcessing(false)
+    setMessage('')
+    setMessageType(null)
   }, [difficulty, generateSequence])
 
   useEffect(() => {
@@ -55,31 +60,55 @@ export default function SimonGame({ game, onComplete, difficulty, onDifficultyCh
   }
 
   const handlePress = (idx) => {
-    if (showing || finished) return
+    if (showing || finished || processing) return
+
     setPressedIndex(idx)
     setTimeout(() => setPressedIndex(null), 250)
+
     const newSeq = [...playerSeq, idx]
     setPlayerSeq(newSeq)
+
     if (newSeq[newSeq.length - 1] !== sequence[newSeq.length - 1]) {
+      setProcessing(true)
       setMessage(getRandomMessage(game.incorrectMessages))
+      setMessageType('incorrect')
       setTimeout(() => {
-        if (round + 1 < totalRounds) setRound(r => r + 1)
-        else { setFinished(true); onComplete(score, totalRounds) }
+        setProcessing(false)
+        setMessage('')
+        setMessageType(null)
+        if (round + 1 < totalRounds) {
+          setRound(r => r + 1)
+        } else {
+          setFinished(true)
+          onComplete(score, totalRounds)
+        }
       }, 1000)
       return
     }
+
     if (newSeq.length === sequence.length) {
+      setProcessing(true)
       setMessage(getRandomMessage(game.correctMessages))
+      setMessageType('correct')
       setScore(s => s + 1)
-      if (round + 1 < totalRounds) {
-        setTimeout(() => setRound(r => r + 1), 1000)
-      } else {
-        setTimeout(() => { setFinished(true); onComplete(score + 1, totalRounds) }, 1000)
-      }
+      setTimeout(() => {
+        setProcessing(false)
+        setMessage('')
+        setMessageType(null)
+        if (round + 1 < totalRounds) {
+          setRound(r => r + 1)
+        } else {
+          setFinished(true)
+          onComplete(score + 1, totalRounds)
+        }
+      }, 1000)
     }
   }
 
   if (finished) return null
+
+  const isDisabled = showing || finished || processing
+  const messageColor = messageType === 'correct' ? 'text-green-500' : messageType === 'incorrect' ? 'text-red-500' : ''
 
   return (
     <div>
@@ -92,7 +121,14 @@ export default function SimonGame({ game, onComplete, difficulty, onDifficultyCh
           </span>
           <button
             onClick={onDifficultyChangeRequest}
-            className={`w-8 h-8 rounded-full flex items-center justify-center ${light ? 'bg-gray-100 hover:bg-gray-200' : 'bg-white/20 hover:bg-white/30'}`}
+            disabled={isDisabled}
+            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+              isDisabled
+                ? 'opacity-40 cursor-not-allowed'
+                : light
+                  ? 'bg-gray-100 hover:bg-gray-200'
+                  : 'bg-white/20 hover:bg-white/30'
+            }`}
             title="Сменить сложность"
           >
             <Settings size={16} className={light ? 'text-gray-600' : 'text-white'} />
@@ -113,21 +149,37 @@ export default function SimonGame({ game, onComplete, difficulty, onDifficultyCh
       </div>
 
       <div className={`${light ? 'bg-white border-gray-200' : 'bg-white/10 border-white/20'} backdrop-blur-xl border rounded-3xl p-6 text-center`}>
-        <h2 className={`text-lg mb-4 ${light ? 'text-gray-800' : 'text-white'}`}>{showing ? 'Запоминайте...' : 'Повторите!'}</h2>
-        <div className="grid grid-cols-2 gap-4 max-w-xs mx-auto">
-          {COLORS.map((color, idx) => {
-            const isActive = activeIndex === idx || pressedIndex === idx
-            return (
-              <button key={idx} onClick={() => handlePress(idx)}
-                className={`w-24 h-24 rounded-2xl bg-gradient-to-br ${color} transition-all duration-200 transform ${
-                  isActive ? 'scale-125 brightness-150 shadow-2xl animate-glow' : 'scale-100 hover:scale-105'
-                }`}
-                disabled={showing}
-              />
-            )
-          })}
+        <h2 className={`text-lg mb-4 ${light ? 'text-gray-800' : 'text-white'}`}>
+          {showing ? 'Запоминайте...' : (processing ? 'Проверяем...' : 'Повторите!')}
+        </h2>
+        
+        <div className="flex justify-center">
+          <div className="grid grid-cols-2 gap-4">
+            {COLORS.map((color, idx) => {
+              const isActive = activeIndex === idx || pressedIndex === idx
+              return (
+                <button
+                  key={idx}
+                  onClick={() => handlePress(idx)}
+                  className={`w-24 h-24 rounded-2xl bg-gradient-to-br ${color} transition-all duration-200 transform ${
+                    isActive ? 'scale-125 brightness-150 shadow-2xl animate-glow' : 'scale-100'
+                  } ${
+                    isDisabled
+                      ? 'opacity-50 cursor-not-allowed'
+                      : 'hover:scale-105'
+                  }`}
+                  disabled={isDisabled}
+                />
+              )
+            })}
+          </div>
         </div>
-        {message && <div className="mt-4 text-lg font-bold animate-slide-up text-green-500">{message}</div>}
+
+        {message && (
+          <div className={`mt-4 text-lg font-bold animate-slide-up ${messageColor}`}>
+            {message}
+          </div>
+        )}
       </div>
     </div>
   )
