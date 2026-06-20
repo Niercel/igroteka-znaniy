@@ -40,12 +40,6 @@ export default function Header() {
           >
             Преимущества
           </button>
-          <button 
-            className="text-white/70 hover:text-white transition-colors text-base"
-            onClick={() => smoothScrollTo('testimonials', 80)}
-          >
-            Отзывы
-          </button>
         </div>
 
         <div className="flex gap-3">

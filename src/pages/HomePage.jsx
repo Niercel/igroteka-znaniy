@@ -5,7 +5,6 @@ import Hero from '../components/Hero'
 import Services from '../components/Services'
 import HowItWorks from '../components/HowItWorks'
 import Advantages from '../components/Advantages'
-import Testimonials from '../components/Testimonials'
 import Footer from '../components/Footer'
 import ScrollToTop from '../components/ScrollToTop'
 
@@ -76,7 +75,6 @@ export default function HomePage() {
           <Services />
           <HowItWorks />
           <Advantages />
-          <Testimonials />
         </main>
         <Footer />
         <ScrollToTop />
